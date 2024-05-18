@@ -40,20 +40,20 @@ data = {
         "elapsed": 3,
         "planned": 5
     },
-    "battery": {
-        "needed": 23,
-        "percentage": 55
+    "battery": { 
+        "needed": 23, 
+        "percentage": 55 #?done
     },
-    "temperature": 123,
+    "temperature": 123, 
     "odometer": 15487, #KM
-    "speed": 3, #KM/H,
-    "drivingMode" : "P", # D,R
-    "orientation" : {
+    "speed": 3, #KM/H, #?done
+    "drivingMode" : "P", # D,R #?done
+    "orientation" : { #?done
         "roll" : 12.00,
         "pitch": 12.00,
         "yaw": 12.88
     },
-    "motors_details": {
+    "motors_details": { #?done
         "fr": {
         "rpm": 23, # int
         "steering": 18, #int
@@ -83,8 +83,8 @@ data = {
         "power": 23.434
         }
     },
-    "door_state":"closed",
-    "steering_status": "ok",
-    "brake_status": "ok",
+    "door_state":"closed", #?done
+    "steering_status": "ok",#?done
+    "brake_status": "ok",#?done
     "timestamp": 0
 }

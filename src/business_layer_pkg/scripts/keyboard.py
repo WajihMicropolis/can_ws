@@ -11,7 +11,7 @@ drive_data = {"wasdb": {"w": 0, "a": 0, "s": 0, "d": 0, "b": 0}}  # 0  # 0  # 0 
 prev_drive_data = deepcopy(drive_data)
 
 gear_data = {
-    "gear": 2,
+    "gear": 1,
 }
 prev_gear = deepcopy(gear_data)
 
@@ -74,12 +74,12 @@ def on_release(key):
             drive_data["wasdb"]["a"] = 0
             
         if key == keyboard.Key.up:
-            gear_data["gear"] += 2
-            gear_data["gear"] = min(10, gear_data["gear"])
+            gear_data["gear"] += 1
+            gear_data["gear"] = min(5, gear_data["gear"])
             
         if key == keyboard.Key.down:
-            gear_data["gear"] -= 2
-            gear_data["gear"] = max(2, gear_data["gear"])
+            gear_data["gear"] -= 1
+            gear_data["gear"] = max(1, gear_data["gear"])
     
     if gear_data != prev_gear:
         prev_gear = deepcopy(gear_data)
