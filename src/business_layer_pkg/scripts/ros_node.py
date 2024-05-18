@@ -13,6 +13,7 @@ from business_layer_pkg.srv import (
     health_checkResponse,
 )
 from robot_control import Robot_Control
+from robot_feedback import RobotFeedback
 
 _healthCheckArray = [
     "CONNECTION_QUALITY",
@@ -43,15 +44,16 @@ class Robot_Node:
         self._robot_operational_details_pub = rospy.Publisher("robot_operational_details", String, queue_size=1, latch=True)
         
         #! publishers to the Robot
-        self.tele_operator_pub = rospy.Publisher("cmd_vel", Twist, queue_size=1, latch=True)
-        self.velocity_pub = rospy.Publisher("robot/velocity",Float32,queue_size=1 ,latch=True)
-        self.steering_pub = rospy.Publisher("robot/steering",Float32,queue_size=1,latch=True)
-        self.emergency_brake_pub = rospy.Publisher("robot/emergency_brake",Bool,queue_size=1,latch=True)
+        self.tele_operator_pub      = rospy.Publisher("cmd_vel", Twist, queue_size=1, latch=True)
+        self.velocity_pub           = rospy.Publisher("robot/velocity",Float32,queue_size=1 ,latch=True)
+        self.steering_pub           = rospy.Publisher("robot/steering",Float32,queue_size=1,latch=True)
+        self.emergency_brake_pub    = rospy.Publisher("robot/emergency_brake",Bool,queue_size=1,latch=True)
+        self.robot_door_control_pub = rospy.Publisher("robot/door_control",Bool,queue_size=1,latch=True)
 
         #! subscribers from the Teleoperation software
         self.gear_sub = rospy.Subscriber("gear", String, self.gear_cb)
         self.wasdb_sub = rospy.Subscriber("wasdb", String, self.wasdb_cb)
-        # self.door_control_sub = rospy.Subscriber("door_control", String, self.door_control_cb)
+        self.door_control_sub = rospy.Subscriber("door_control", String, self.door_control_cb)
 
         # services
         self._health_check_srv = rospy.Service("health_check_srv", health_check, self.health_check_srv)
@@ -73,6 +75,7 @@ class Robot_Node:
         self._modeToBeChecked = []
         self.gear = 1
         self.Robot_Control = Robot_Control()
+        self.Robot_Feedback = RobotFeedback()
         self.drive_data = {"w": 0, "a": 0, "s": 0, "d": 0, "b": 0}
 
     def health_check_srv(self, req: health_checkRequest):
@@ -105,6 +108,23 @@ class Robot_Node:
         print("mode to be checked: ", self._modeToBeChecked)
         return health_checkResponse(checks=self._modeToBeChecked)
 
+    def door_control_cb(self, msg: String):
+        door_control = json.loads(msg.data)
+        print("door_control: ", door_control)
+
+    def gear_cb(self, msg: String):
+
+        gear = json.loads(msg.data)
+        self.gear = gear["gear"]
+        self.Robot_Control.gear_update(self.gear)
+
+    def wasdb_cb(self, msg: String):
+
+        wasdb = json.loads(msg.data)
+        wasdb = wasdb["wasdb"]
+        self.drive_data = wasdb
+        self.Robot_Control.wasdb_update(self.drive_data)
+    
     def publish_health_check(self):
 
         if self._modeToBeChecked == []:
@@ -146,25 +166,6 @@ class Robot_Node:
             self.prev_robot_state = deepcopy(self.robot_state)
             print("robot_state: ", self.robot_state)
 
-    # def door_control_cb(self, msg: String):
-    #     door_control = json.loads(msg.data)
-    #     print("door_control: ", door_control)
-
-    def gear_cb(self, msg: String):
-
-        gear = json.loads(msg.data)
-        self.gear = gear["gear"]
-        self.Robot_Control.gear_update(self.gear)
-        # print("gearcb: ", self.gear)
-
-    def wasdb_cb(self, msg: String):
-
-        wasdb = json.loads(msg.data)
-        wasdb = wasdb["wasdb"]
-        self.drive_data = wasdb
-        print(self.drive_data)
-        self.Robot_Control.wasdb_update(self.drive_data)
-        
     def publish_teleop(self):
         self.Robot_Control.teleop_control(self.teleoperator_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
         self.tele_operator_pub.publish(self.teleoperator_command)
@@ -178,6 +179,7 @@ class Robot_Node:
         self.publish_robot_state()
         self.publish_health_check()
         self.publish_teleop()
+        self.steering_health_check, self.braking_health_check = self.Robot_Feedback.getHealthCheck()
 
 
 

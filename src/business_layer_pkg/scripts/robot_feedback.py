@@ -26,10 +26,18 @@ class RobotFeedback:
         self.brake_state_sub            = rospy.Subscriber("feedback/brake_state",   String, self.brake_state_cb)
         self.driving_mode_sub           = rospy.Subscriber("feedback/driving_mode",    String, self.driving_mode_cb)
 
-        self.steering_health_check_sub  = rospy.Subscriber("feedback/steering_health_check",  Bool, self.steering_health_check_cb)
-        self.braking_health_check_sub   = rospy.Subscriber("feedback/braking_health_check",   Bool, self.braking_health_check_cb)
+        self.steering_health_check = False
+        self.steering_health_check_sub  = rospy.Subscriber("feedback/steering_health_check",  Bool,  lambda msg : setattr(self, 'steering_health_check', msg.data)
+)
+        self.braking_health_check_sub   = rospy.Subscriber("feedback/braking_health_check",   Bool, lambda msg: setattr(self, 'braking_health_check', msg.data))
 
+        self.braking_health_check = False
 
+    def getHealthCheck(self):
+        # print("steering_health_check: ", self.steering_health_check)
+        # print("braking_health_check: ", self.braking_health_check)
+        return self.steering_health_check, self.braking_health_check
+    
     def motors_speed_cb(self, msg: Int16MultiArray):
         data['motors_details']['fr']['rpm'] = msg.data[0]
         data['motors_details']['fl']['rpm'] = msg.data[1]
@@ -80,16 +88,13 @@ class RobotFeedback:
         data['drivingMode'] = msg.data
         None
 
-    def steering_health_check_cb(self, msg:Bool):
-        None
-    def braking_health_check_cb(self, msg: Bool):
-        None
+
+
 
 if __name__ == "__main__":
     try:
         robot = RobotFeedback()
         test_data = "ok:MotorOverTemperature:MotorOverCurrent:MotorError"
-        # split test_data by ':'
         fr_state, fl_state, br_state, bl_state = test_data.split(':')
 
         print("fr_state: ", fr_state)
