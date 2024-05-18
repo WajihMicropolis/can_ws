@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+	<node pkg="business_layer_pkg" type="keyboard.py" name="keyboard_commands" output="screen" />
+
+	<node pkg="business_layer_pkg" type="robot_control.py" name="robot_control" output="screen" />
+   
+</launch>

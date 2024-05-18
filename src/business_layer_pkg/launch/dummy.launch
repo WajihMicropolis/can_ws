@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+
+   <rosparam file="$(find business_layer_pkg)/config/dummy.yaml" command="load" ns="" />
+
+   <node pkg="business_layer_pkg" type="dummy_node" name="dummy_data" output="screen"  />
+   <node pkg="business_layer_pkg" type="dummy.py" name="dummy" output="screen"  />
+   
+</launch>

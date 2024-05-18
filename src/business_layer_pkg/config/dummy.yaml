@@ -1,0 +1,20 @@
+robot_state_topic : "robot_state"
+robot_state_change_time: 10 # in minutes
+robot_state_change_in_minutes: false
+reset_robot_state_service_name: "reset_robot_state"
+
+healthCheckTopic: "health_check"
+healthCheckServiceName: "health_check_srv"
+health_check_time: 3 # in seconds
+
+emergency_cause_topic : "emergency_cause"
+
+battery_topic : "battery_dummy"
+battery_discharge_time: 5 # in seconds
+battery_charge_time: 5 # in seconds
+
+connection_quality_topic : "connection_quality"
+connection_quality_time: 5 # in seconds
+
+gps_topic: "gps"
+gps_change_time: 3 # in seconds

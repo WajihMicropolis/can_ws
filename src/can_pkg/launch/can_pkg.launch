@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="port" default="/dev/ttyUSB0" />
+    <arg name="publish_rate" default= "100" />
+    <arg name="send_rate" default="100" />
+    <arg name="gui" default="no"/>
+
+    <node name="can_node" pkg="can_pkg" type="can_node" output="screen">
+        <param name="port" value="$(arg port)"/>
+        <param name="publish_rate" value="$(arg publish_rate)"/>
+        <param name="send_rate" value="$(arg send_rate)"/>
+    </node>
+
+    <!-- <node name="convert_CmdVel" pkg="can_pkg" type="ros_node.py" output="screen"/>
+    
+    <node pkg="can_pkg" type="ros_slider_publisher.py" name="ros_slider" if="$(eval arg('gui') == 'yes')"/> -->
+
+</launch>
+<!-- use this command to launch the slider -->
+<!-- roslaunch can_pkg can_pkg.launch gui:=yes -->
+
+<!-- use this command to set the usb port -->
+<!-- roslaunch can_pkg can_pkg.launch port:=/dev/ttyUSB1 -->
