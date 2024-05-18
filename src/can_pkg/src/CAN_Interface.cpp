@@ -504,11 +504,11 @@ void CAN_Interface::sendCmdVel(float velocity, float steering)
    CONVERTERu16tou8(&cMessage.CANMessageData[4], canBus->float_encode(Vehicle.DesiredCarParameters.DesiredSteeringAngle));           // steering angle
    CONVERTERu16tou8(&cMessage.CANMessageData[6], canBus->float_encode(Vehicle.DesiredCarParameters.DesiredSteeringAngularVelocity)); // steering angular velocity
 
+   canBus->SendCANMessage(cMessage);
    // printf("Vehicle.DesiredCarParameters.DesiredVelocity= %f \n", Vehicle.DesiredCarParameters.DesiredVelocity);
    // printf("Vehicle.DesiredCarParameters.DesiredAcceleration= %f \n", Vehicle.DesiredCarParameters.DesiredAcceleration);
    // printf("Vehicle.DesiredCarParameters.DesiredSteeringAngle= %f \n", Vehicle.DesiredCarParameters.DesiredSteeringAngle);
    // printf("Vehicle.DesiredCarParameters.DesiredSteeringAngularVelocity= %f \n", Vehicle.DesiredCarParameters.DesiredSteeringAngularVelocity);
-   canBus->SendCANMessage(cMessage);
 }
 
 void CAN_Interface::sendEmergencyBrake(bool emergencyBrake)
@@ -535,9 +535,19 @@ void CAN_Interface::sendDoorControl(bool doorControl)
    canBus->SendCANMessage(cMessage);
 }
 
-float CAN_Interface::getRobotSpeed(vector<int16_t> motorsSpeed)
+pair<float, float> CAN_Interface::getRobotOrientation(float &yaw)
 {
-   return (motorsSpeed[0] + motorsSpeed[1] + motorsSpeed[2] + motorsSpeed[3]) / 4;
+   tf2::Quaternion myQuaternion;
+   float yaw_rad;
+   yaw_rad = yaw * (M_PI / 180);
+
+   myQuaternion.setRPY(0, 0, yaw_rad);
+   return make_pair(myQuaternion.getZ(), myQuaternion.getW());
+}
+
+float CAN_Interface::getRobotSpeed(Int16MultiArray motorsSpeed) // motors speed in rpm
+{
+   return (motorsSpeed.data[0] + motorsSpeed.data[1] + motorsSpeed.data[2] + motorsSpeed.data[3]) / 4;
 }
 
 string CAN_Interface::getSteeringError(WheelSteeringStatus &steeringError)
@@ -557,7 +567,7 @@ string CAN_Interface::getSteeringError(WheelSteeringStatus &steeringError)
    else if (steeringError.MotorConnectionLoss)
       error += "MotorConnectionLoss";
    else
-      error += "No Error";
+      error += "ok";
    return error;
 }
 
@@ -574,8 +584,47 @@ string CAN_Interface::getBrakingError(WheelBrakingStatus &brakingError)
    else if (brakingError.MotorConnectionLoss)
       error += "MotorConnectionLoss, ";
    else
-      error += "No Error";
+      error += "ok";
    return error;
+}
+
+String CAN_Interface::getDrivingMode(float &_robotSpeedFb, Int16MultiArray &_brakePercentageFb, float &_robotSpeedCommand)
+{
+   String drivingMode;
+   float brake_percentage_avg = (_brakePercentageFb.data[0] + _brakePercentageFb.data[1] + _brakePercentageFb.data[2] + _brakePercentageFb.data[3]) / 4;
+
+   if (_robotSpeedFb == 0 && brake_percentage_avg >= 0)
+      drivingMode.data = "P";
+   else if ((_robotSpeedFb > 0 && brake_percentage_avg == 0) || _robotSpeedCommand > 0)
+      drivingMode.data = "D";
+   else if ((_robotSpeedFb < 0 && brake_percentage_avg == 0) || _robotSpeedCommand < 0)
+      drivingMode.data = "R";
+
+   return drivingMode;
+}
+
+pair<string, string> CAN_Interface::steeringBrakingStatus()
+{
+
+   vector<string> steeringStatus, brakingStatus;
+   string _steeringStatus, _brakingStatus;
+
+   steeringStatus.push_back(getSteeringError(Vehicle.WheelFrontRight.Steering.WheelSteeringState));
+   steeringStatus.push_back(getSteeringError(Vehicle.WheelFrontLeft.Steering.WheelSteeringState));
+   steeringStatus.push_back(getSteeringError(Vehicle.WheelRearRight.Steering.WheelSteeringState));
+   steeringStatus.push_back(getSteeringError(Vehicle.WheelRearLeft.Steering.WheelSteeringState));
+
+   brakingStatus.push_back(getBrakingError(Vehicle.WheelFrontRight.Braking.BrakingStatus));
+   brakingStatus.push_back(getBrakingError(Vehicle.WheelFrontLeft.Braking.BrakingStatus));
+   brakingStatus.push_back(getBrakingError(Vehicle.WheelRearRight.Braking.BrakingStatus));
+   brakingStatus.push_back(getBrakingError(Vehicle.WheelRearLeft.Braking.BrakingStatus));
+
+   for (int i = 0; i < steeringStatus.size(); i++)
+   {
+      _steeringStatus += steeringStatus[i] + ":";
+      _brakingStatus += brakingStatus[i] + ":";
+   }
+   return make_pair(_steeringStatus, _brakingStatus);
 }
 
 void CAN_Interface::getFeedback(CANFeedback &feedback)
@@ -624,21 +673,15 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             feedback.battery_state.temperature = Vehicle.PDU.BatteryStateOfCharge.BatteryTemperature;
             feedback.battery_state.capacity = Vehicle.PDU.BatteryStateOfCharge.Range;
 
-            tf2::Quaternion myQuaternion;
-            float roll, pitch, yaw;
-            yaw = Vehicle.IMUSensor.Angle.Angle_Yaw * (M_PI / 180);
-
-            myQuaternion.setRPY(0, 0, yaw);
-
-            feedback.imu.orientation.x = 0;
-            feedback.imu.orientation.y = 0;
-            feedback.imu.orientation.z = myQuaternion.getZ();
-            feedback.imu.orientation.w = myQuaternion.getW();
-
             feedback.rpy.data.clear();
             feedback.rpy.data.push_back(Vehicle.IMUSensor.Angle.Angle_Roll);
             feedback.rpy.data.push_back(Vehicle.IMUSensor.Angle.Angle_Pitch);
             feedback.rpy.data.push_back(Vehicle.IMUSensor.Angle.Angle_Yaw);
+
+            _robotOrientation = getRobotOrientation(Vehicle.IMUSensor.Angle.Angle_Yaw);
+            feedback.imu.orientation.x = feedback.imu.orientation.y = 0.0;
+            feedback.imu.orientation.z = _robotOrientation.first;
+            feedback.imu.orientation.w = _robotOrientation.second;
 
             feedback.imu.angular_velocity.x = Vehicle.IMUSensor.AngularVelocity.AngularVelocity_Roll * (M_PI / 180);
             feedback.imu.angular_velocity.y = Vehicle.IMUSensor.AngularVelocity.AngularVelocity_Pitch * (M_PI / 180);
@@ -651,36 +694,23 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             feedback.steering_health_check.data = Vehicle.SteeringSystemState.SystemReady;
             feedback.braking_health_check.data = Vehicle.BrakingSystemState.SystemReady;
 
-            // feedback.robot_speed = getRobotSpeed(feedback.motors_speed->data);
+            feedback.robot_speed.data = getRobotSpeed(feedback.motors_speed);
+
             feedback.door_state.data = doorStateStr[Vehicle.Door_Lifter.DoorStatus];
 
-            feedback.steering_status.data.clear();
-            vector<string> steeringStatus, brakingStatus;
-            String _steeringStatus, _brakingStatus;
-            
-            steeringStatus.push_back(getSteeringError(Vehicle.WheelFrontRight.Steering.WheelSteeringState));
-            steeringStatus.push_back(getSteeringError(Vehicle.WheelFrontLeft.Steering.WheelSteeringState));
-            steeringStatus.push_back(getSteeringError(Vehicle.WheelRearRight.Steering.WheelSteeringState));
-            steeringStatus.push_back(getSteeringError(Vehicle.WheelRearLeft.Steering.WheelSteeringState));
-            
-            brakingStatus.push_back(getBrakingError(Vehicle.WheelFrontRight.Braking.BrakingStatus));
-            brakingStatus.push_back(getBrakingError(Vehicle.WheelFrontLeft.Braking.BrakingStatus));
-            brakingStatus.push_back(getBrakingError(Vehicle.WheelRearRight.Braking.BrakingStatus));
-            brakingStatus.push_back(getBrakingError(Vehicle.WheelRearLeft.Braking.BrakingStatus));
-            
-            for (int i = 0; i < steeringStatus.size(); i++)
-            {
-               _steeringStatus.data += steeringStatus[i] + ":";
-               _brakingStatus.data += brakingStatus[i] + ":";
-            }
-            feedback.steering_status.data = _steeringStatus.data;
-            feedback.braking_status.data = _brakingStatus.data;
+            _steering_braking_status = steeringBrakingStatus();
+            feedback.steering_status.data = _steering_braking_status.first;
+            feedback.braking_status.data = _steering_braking_status.second;
 
+            feedback.steering_health_check.data = Vehicle.SteeringSystemState.SystemReady;
+            feedback.braking_health_check.data = Vehicle.BrakingSystemState.SystemReady;
+
+            feedback.driving_mode = getDrivingMode(feedback.robot_speed.data, feedback.brake_percentage, Vehicle.DesiredCarParameters.DesiredVelocity);
+
+
+            // TODO: add feedback for lights
             cout << "WheelFrontRight.DrivingVelocity: " << Vehicle.WheelFrontRight.Driving.DrivingVelocity << endl;
             printf(" WheelRearRight.Steering.SteeringAngle %f\n", Vehicle.WheelRearRight.Steering.SteeringAngle);
-
-            cout << "WheelFrontRight.SteeringAngle: " << Vehicle.WheelFrontRight.Steering.SteeringAngle << endl;
-            // cout << "WheelFrontRight.BrakeValue: " << Vehicle.WheelFrontRight.Braking.BrakeValue << endl;
             printf("WheelFrontRight.BrakeValue: %d\n", Vehicle.WheelFrontRight.Braking.BrakeValue);
             cout << "Angle.Angle_Roll: " << Vehicle.IMUSensor.Angle.Angle_Roll << endl;
             cout << "Angle.Angle_Pitch: " << Vehicle.IMUSensor.Angle.Angle_Pitch << endl;

@@ -31,10 +31,11 @@ private:
         _imu_pub,
         _rpy_pub,
         _door_state_pub,
-        _steering_error_pub,
-        _brake_error_pub,
+        _steering_state_pub,
+        _brake_state_pub,
         _steering_health_check_pub,
-        _braking_health_check_pub;
+        _braking_health_check_pub,
+        _drive_mode_pub;
 
     ros::Time _sendTime,
         _publishTime;
@@ -45,19 +46,20 @@ private:
         _ultrasonic_msg;
 
     Float32MultiArray _rpy_msg;
-    
+
     Imu _imu_msg;
     BatteryState _battery_state_msg;
     Float32 _robot_speed_msg;
-    String _door_state_msg;
 
     CAN_Interface *can_interface;
     CAN_Interface::CANFeedback _can_feedback;
 
     std::string _USB_PORT;
 
-    std_msgs::String _steering_error_msg,
-        _brake_error_msg;
+    std_msgs::String _steering_state_msg,
+        _brake_state_msg,
+        _door_state_msg,
+        _drive_mode_msg;
 
     std_msgs::Bool _steering_health_check_msg,
         _braking_health_check_msg;

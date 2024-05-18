@@ -28,26 +28,31 @@ ROS_Node::ROS_Node(/* args */)
                                                                   //   std::cout<<"door_control: " <<_door_control<<std::endl;
                                                                      });
 
-   this->_motorsSpeed_pub        = this->_nh->advertise<std_msgs::Int16MultiArray>("motors_speed", 1,1);
-   this->_steering_angle_pub     = this->_nh->advertise<std_msgs::Int16MultiArray>("steering_angle", 1,1);
-   this->_brake_percentage_pub   = this->_nh->advertise<std_msgs::Int16MultiArray>("brake_percentage", 1,1);
-   this->_ultrasonic_pub         = this->_nh->advertise<std_msgs::Int16MultiArray>("ultrasonic", 1,1);
-   this->_rpy_pub                = this->_nh->advertise<std_msgs::Float32MultiArray>("rpy", 1,1);
+   bool _latch = true;
+   uint8_t _queue_size = 1;
+
+   this->_motorsSpeed_pub        = this->_nh->advertise<std_msgs::Int16MultiArray>  ("feedback/motors_speed",     _latch,_latch);
+   this->_steering_angle_pub     = this->_nh->advertise<std_msgs::Int16MultiArray>  ("feedback/steering_angle",   _latch,_latch);
+   this->_brake_percentage_pub   = this->_nh->advertise<std_msgs::Int16MultiArray>  ("feedback/brake_percentage", _latch,_latch);
+   this->_ultrasonic_pub         = this->_nh->advertise<std_msgs::Int16MultiArray>  ("feedback/ultrasonic",       _latch,_latch);
+   this->_rpy_pub                = this->_nh->advertise<std_msgs::Float32MultiArray>("feedback/rpy",              _latch,_latch);
    
-   this->_battery_pub            = this->_nh->advertise<sensor_msgs::BatteryState>("battery", 1,1);
-   this->_robot_speed_pub        = this->_nh->advertise<std_msgs::Float32>("robot_speed", 1,1);
-   this->_door_state_pub         = this->_nh->advertise<std_msgs::String>("door_state", 1,1);
-   this->_steering_error_pub     = this->_nh->advertise<std_msgs::String>("steering_status", 1,1);
-   this->_brake_error_pub        = this->_nh->advertise<std_msgs::String>("brake_status", 1,1);
-   this->_imu_pub                = this->_nh->advertise<sensor_msgs::Imu>("imu", 1,1);
+   this->_battery_pub            = this->_nh->advertise<sensor_msgs::BatteryState>  ("feedback/battery",          _latch,_latch);
+   this->_imu_pub                = this->_nh->advertise<sensor_msgs::Imu>           ("feedback/imu",              _latch,_latch);
+   this->_robot_speed_pub        = this->_nh->advertise<std_msgs::Float32>          ("feedback/robot_speed",      _latch,_latch);
+   this->_door_state_pub         = this->_nh->advertise<std_msgs::String>           ("feedback/door_state",       _latch,_latch);
+   this->_steering_state_pub     = this->_nh->advertise<std_msgs::String>           ("feedback/steering_state",  _latch,_latch);
+   this->_brake_state_pub        = this->_nh->advertise<std_msgs::String>           ("feedback/brake_state",     _latch,_latch);
+   this->_drive_mode_pub         = this->_nh->advertise<std_msgs::String>           ("feedback/driving_mode",     _latch,_latch);
    
-   this->_steering_health_check_pub = this->_nh->advertise<std_msgs::Bool>("steering_health_check", 1,1);
-   this->_braking_health_check_pub  = this->_nh->advertise<std_msgs::Bool>("braking_health_check", 1,1);
+   this->_steering_health_check_pub = this->_nh->advertise<std_msgs::Bool>          ("feedback/steering_health_check",  _latch,_latch);
+   this->_braking_health_check_pub  = this->_nh->advertise<std_msgs::Bool>          ("feedback/braking_health_check",   _latch,_latch);
 
    this->_can_feedback.motors_speed.data.resize(4);
    this->_can_feedback.steering_angle.data.resize(4);
    this->_can_feedback.brake_percentage.data.resize(4);
    this->_can_feedback.ultrasonic.data.resize(6);
+   this->_can_feedback.rpy.data.resize(3);
 
    this->getRosParam("/can_node/port", this->_USB_PORT);
    this->getRosParam("/can_node/publish_rate", this->publish_rate);
@@ -79,42 +84,49 @@ void ROS_Node::update()
 
 void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
 {
-   _motors_speed_msg = feedback.motors_speed;
-   _steering_angle_msg = feedback.steering_angle;
-   _brake_percentage_msg = feedback.brake_percentage;
-   _ultrasonic_msg = feedback.ultrasonic;
+   _motors_speed_msg       = feedback.motors_speed;
+   _steering_angle_msg     = feedback.steering_angle;
+   _brake_percentage_msg   = feedback.brake_percentage;
+   _ultrasonic_msg         = feedback.ultrasonic;
+   _rpy_msg                = feedback.rpy;
 
-   _rpy_msg = feedback.rpy;
 
-   _imu_msg = feedback.imu;
-   _imu_msg.header.stamp = ros::Time::now();
-   _imu_msg.header.frame_id = "imu";
+   _imu_msg.header.stamp      = ros::Time::now();
+   _imu_msg.header.frame_id   = "imu";
+   _imu_msg                   = feedback.imu;
 
-   _battery_state_msg = feedback.battery_state;
    _battery_state_msg.header.stamp = ros::Time::now();
    _battery_state_msg.header.frame_id = "battery";
+   _battery_state_msg = feedback.battery_state;
 
-   _robot_speed_msg.data = feedback.robot_speed;
+   _robot_speed_msg = feedback.robot_speed;
+
+   _steering_state_msg = feedback.steering_status;
    _door_state_msg = feedback.door_state;
-   _steering_error_msg = feedback.steering_status;
-   _brake_error_msg = feedback.braking_status;
+   _brake_state_msg = feedback.braking_status;
+   _drive_mode_msg = feedback.driving_mode;
+   
    _steering_health_check_msg = feedback.steering_health_check;
    _braking_health_check_msg = feedback.braking_health_check;
 
 
-   _imu_pub.publish(_imu_msg);
-   _rpy_pub.publish(_rpy_msg);
    _motorsSpeed_pub.publish(_motors_speed_msg);
    _steering_angle_pub.publish(_steering_angle_msg);
-   _steering_error_pub.publish(_steering_error_msg);
-   _steering_health_check_pub.publish(_steering_health_check_msg);
    _brake_percentage_pub.publish(_brake_percentage_msg);
-   _brake_error_pub.publish(_brake_error_msg);
-   _braking_health_check_pub.publish(_braking_health_check_msg);
    _ultrasonic_pub.publish(_ultrasonic_msg);
+   _rpy_pub.publish(_rpy_msg);
+   
+   _imu_pub.publish(_imu_msg);
    _battery_pub.publish(_battery_state_msg);
    _robot_speed_pub.publish(_robot_speed_msg);
+   
+   _steering_state_pub.publish(_steering_state_msg);
+   _brake_state_pub.publish(_brake_state_msg);
    _door_state_pub.publish(_door_state_msg);
+   _drive_mode_pub.publish(_drive_mode_msg);
+   
+   _steering_health_check_pub.publish(_steering_health_check_msg);
+   _braking_health_check_pub.publish(_braking_health_check_msg);
 
 }
 

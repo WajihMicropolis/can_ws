@@ -25,6 +25,7 @@
 #include "std_msgs/Float32MultiArray.h"
 #include "std_msgs/String.h"
 #include "std_msgs/Bool.h"
+#include "std_msgs/Float32.h"
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/BatteryState.h"
 #include <tf2/LinearMath/Quaternion.h>
@@ -112,6 +113,9 @@ private:
    uint8_t Status;
    uint8_t MessageNumber;
 
+   pair<float, float> _robotOrientation;
+   pair<string, string> _steering_braking_status;
+
    CANBus *canBus;
    // CANMessage cMessage;
    string doorStateStr[4] = {"opened", "closed", "opening", "closing"};
@@ -141,9 +145,12 @@ private:
    int adapter_init(const char *tty_device, int baudrate);
    static void sigterm(int signo);
 
-   float getRobotSpeed(vector<int16_t> motorsSpeed);
+   float getRobotSpeed(Int16MultiArray motorsSpeed);
    string getSteeringError(WheelSteeringStatus &steeringError);
    string getBrakingError(WheelBrakingStatus &brakingError);
+   pair<float, float> getRobotOrientation(float &yaw);
+   pair<string, string> steeringBrakingStatus();
+   String getDrivingMode(float &_robotSpeedFb, Int16MultiArray &_brakePercentageFb, float &_robotSpeedCommand);
 
 public:
    typedef struct
@@ -152,17 +159,20 @@ public:
           steering_angle,
           brake_percentage,
           ultrasonic;
-      
       Float32MultiArray rpy;
-      
-      Imu imu;
+
       BatteryState battery_state;
-      float robot_speed;
+      Imu imu;
+      Float32 robot_speed;
+
       String door_state;
       String steering_status;
       String braking_status;
+      String driving_mode;
+
       Bool steering_health_check;
       Bool braking_health_check;
+
    } CANFeedback;
 
    int inject_data_frame(const char *hex_id, const char *hex_data, int data_len);
