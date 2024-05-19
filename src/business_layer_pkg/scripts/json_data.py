@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 
 data = {
     "lightning": {
@@ -42,43 +41,43 @@ data = {
     },
     "battery": { 
         "needed": 23, 
-        "percentage": 55 #?done
+        "percentage": 100 #?done
     },
     "temperature": 123, 
     "odometer": 15487, #KM
-    "speed": 3, #KM/H, #?done
+    "speed": 0, #KM/H, #?done
     "drivingMode" : "P", # D,R #?done
     "orientation" : { #?done
-        "roll" : 12.00,
-        "pitch": 12.00,
-        "yaw": 12.88
+        "roll" : 0.00,
+        "pitch": 0.00,
+        "yaw": 0.0
     },
     "motors_details": { #?done
         "fr": {
-        "rpm": 23, # int
-        "steering": 18, #int
-        "brake": 12, # int
+        "rpm": 0, # int
+        "steering": 0, #int
+        "brake": 10, # int
         "torque": 13, # float
         "power": 23.434
         },
         "fl": {
-        "rpm": 23, # int
-        "steering": -18, #int
-        "brake": 12, # int
+        "rpm": 0, # int
+        "steering": 0, #int
+        "brake": 10, # int
         "torque": 13, # float
         "power": 23.434
         },
         "br": {
-        "rpm": 23, # int
-        "steering": 18, #int
-        "brake": 12, # int
+        "rpm": 0, # int
+        "steering": 0, #int
+        "brake": 10, # int
         "torque": 13, # float
         "power": 23.434
         },
         "bl": {
-        "rpm": 23, # int
-        "steering": -18, #int
-        "brake": 12, # int
+        "rpm": 0, # int
+        "steering": 0, #int
+        "brake": 10, # int
         "torque": 13, # float
         "power": 23.434
         }

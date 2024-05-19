@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import rospy
+import json
 
 from std_msgs.msg import String
 from std_msgs.msg import Float32, Int16MultiArray, Bool
@@ -12,6 +13,23 @@ wheel_radius = 0.24 # in meters
 
 class RobotFeedback:
     def __init__(self):
+        
+        self.steering_health_check = False
+        self.braking_health_check = False
+        self.battery_capacity = 100
+        self.steering_state = {
+            "front right": "ok",
+            "front left": "ok",
+            "back right": "ok",
+            "back left": "ok"
+        }
+        self.brake_state = {
+            "front right": "ok",
+            "front left": "ok",
+            "back right": "ok",
+            "back left": "ok"
+        }
+
         self.motors_speed_sub           = rospy.Subscriber("feedback/motors_speed",   Int16MultiArray, self.motors_speed_cb)
         self.steering_angle_sub         = rospy.Subscriber("feedback/steering_angle",     Int16MultiArray, self.steering_angle_cb)
         self.brake_percentage_sub       = rospy.Subscriber("feedback/brake_percentage",   Int16MultiArray, self.brake_percentage_cb)
@@ -25,19 +43,11 @@ class RobotFeedback:
         self.steering_state_sub         = rospy.Subscriber("feedback/steering_state",    String, self.steering_state_cb)
         self.brake_state_sub            = rospy.Subscriber("feedback/brake_state",   String, self.brake_state_cb)
         self.driving_mode_sub           = rospy.Subscriber("feedback/driving_mode",    String, self.driving_mode_cb)
-
-        self.steering_health_check = False
-        self.steering_health_check_sub  = rospy.Subscriber("feedback/steering_health_check",  Bool,  lambda msg : setattr(self, 'steering_health_check', msg.data)
-)
+        self.steering_health_check_sub  = rospy.Subscriber("feedback/steering_health_check",  Bool,  lambda msg : setattr(self, 'steering_health_check', msg.data))
         self.braking_health_check_sub   = rospy.Subscriber("feedback/braking_health_check",   Bool, lambda msg: setattr(self, 'braking_health_check', msg.data))
 
-        self.braking_health_check = False
 
-    def getHealthCheck(self):
-        # print("steering_health_check: ", self.steering_health_check)
-        # print("braking_health_check: ", self.braking_health_check)
-        return self.steering_health_check, self.braking_health_check
-    
+
     def motors_speed_cb(self, msg: Int16MultiArray):
         data['motors_details']['fr']['rpm'] = msg.data[0]
         data['motors_details']['fl']['rpm'] = msg.data[1]
@@ -65,7 +75,8 @@ class RobotFeedback:
         data['orientation']['yaw']  = msg.data[2]
 
     def battery_cb(self, msg: BatteryState):
-        data['battery']['percentage'] = msg.percentage
+        self.battery_capacity = msg.capacity
+        data['battery']['percentage'] = msg.capacity
 
     def robot_speed_cb(self, msg:Float32):
         speed_rpm = msg.data
@@ -77,24 +88,68 @@ class RobotFeedback:
         print("door state: ", data['door_state'])
 
     def steering_state_cb(self, msg:String):
-        
-        data['steering_status'] = msg.data
+        split_data = msg.data.split(':')
+        print("steering_state: ", split_data)
+        self.steering_state['front right']  = split_data[0]
+        self.steering_state['front left']   = split_data[1]
+        self.steering_state['back right']   = split_data[2]
+        self.steering_state['back left']    = split_data[3]
+        print("steering_state: ", self.steering_state)
             
     def brake_state_cb(self, msg:String):
-        data['brake_status'] = msg.data
-        None
+        split_data = msg.data.split(':')
+        self.brake_state['front right']  = split_data[0]
+        self.brake_state['front left']   = split_data[1]
+        self.brake_state['back right']   = split_data[2]
+        self.brake_state['back left']    = split_data[3]
 
     def driving_mode_cb(self, msg:String):
         data['drivingMode'] = msg.data
         None
 
+    def getEmergencyCause(self):
+        emergency_cause = []
 
+        if self.battery_capacity < 20:
+            emergency_cause.append("low battery")
+        # Check for errors in steering state
+        for motor_type, state in self.steering_state.items():
+            if state != "ok":
+                emergency_cause.append(f"steering motor:{motor_type} {state}")
+
+        # Check for errors in brake state
+        for motor_type, state in self.brake_state.items():
+            if state != "ok":
+                emergency_cause.append(f"brake motor:{motor_type} {state}")
+
+        # If no errors found, return an empty string
+        if not emergency_cause:
+            return ""
+
+        # Return all collected error causes as a single string
+        return "; ".join(emergency_cause)
+
+    def getBatteryCapacity(self):
+        return self.battery_capacity
+
+    def getHealthCheck(self):
+        # print("steering_health_check: ", self.steering_health_check)
+        # print("braking_health_check: ", self.braking_health_check)
+        return self.steering_health_check, self.braking_health_check
+    
+    def getRobotFeedback(self, elapsed_time):
+        data['duration']['elapsed'] = elapsed_time
+        data['timestamp'] = rospy.get_time()
+        
+        json_string = json.dumps(data)
+
+        return json_string
 
 
 if __name__ == "__main__":
     try:
         robot = RobotFeedback()
-        test_data = "ok:MotorOverTemperature:MotorOverCurrent:MotorError"
+        test_data = "ok:ok:ok:MotorError"
         fr_state, fl_state, br_state, bl_state = test_data.split(':')
 
         print("fr_state: ", fr_state)

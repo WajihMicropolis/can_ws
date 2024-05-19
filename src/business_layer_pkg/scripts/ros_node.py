@@ -14,6 +14,7 @@ from business_layer_pkg.srv import (
 )
 from robot_control import Robot_Control
 from robot_feedback import RobotFeedback
+import datetime
 
 _healthCheckArray = [
     "CONNECTION_QUALITY",
@@ -37,10 +38,9 @@ class Robot_Node:
         rospy.init_node("robot_node", anonymous=True)
 
         #! publishers to the Teleoperation software
-        self._robot_state_pub = rospy.Publisher("robot_state", String, queue_size=1, latch=True)
-        
-        self._emetgency_cause_pub = rospy.Publisher("emergency_cause", String, queue_size=1, latch=True)
-        self._health_check_pub = rospy.Publisher("health_check", String, queue_size=1, latch=True)
+        self._robot_state_pub               = rospy.Publisher("robot_state", String, queue_size=1, latch=True)
+        self._health_check_pub              = rospy.Publisher("health_check", String, queue_size=1, latch=True)
+        self._emetgency_cause_pub           = rospy.Publisher("emergency_cause", String, queue_size=1, latch=True)
         self._robot_operational_details_pub = rospy.Publisher("robot_operational_details", String, queue_size=1, latch=True)
         
         #! publishers to the Robot
@@ -51,26 +51,28 @@ class Robot_Node:
         self.robot_door_control_pub = rospy.Publisher("robot/door_control",Bool,queue_size=1,latch=True)
 
         #! subscribers from the Teleoperation software
-        self.gear_sub = rospy.Subscriber("gear", String, self.gear_cb)
-        self.wasdb_sub = rospy.Subscriber("wasdb", String, self.wasdb_cb)
-        self.door_control_sub = rospy.Subscriber("door_control", String, self.door_control_cb)
+        self.gear_sub           = rospy.Subscriber("gear", String, self.gear_cb)
+        self.wasdb_sub          = rospy.Subscriber("wasdb", String, self.wasdb_cb)
+        self.door_control_sub   = rospy.Subscriber("door_control", String, self.door_control_cb)
 
         # services
         self._health_check_srv = rospy.Service("health_check_srv", health_check, self.health_check_srv)
 
         self.teleoperator_command = Twist()
         
-        self.robot_velocity_rpm     = Float32()
-        self.robot_steering         = Float32()
-        self.robot_emergency_brake  = Bool()
+        self.robot_velocity_rpm         = Float32()
+        self.robot_steering             = Float32()
+        self.robot_emergency_brake      = Bool()
+        self.robot_operational_details  = String()
 
         self.robot_state = "KEY_OFF"
         self.prev_robot_state = ""
+        self.old_robot_state = ""
 
         self.connection_quality = 75
         self.steering_health_check = True
         self.braking_health_check = True
-        self.battery_percentage = 75
+        self.battery_capacity = 100
 
         self._modeToBeChecked = []
         self.gear = 1
@@ -78,11 +80,22 @@ class Robot_Node:
         self.Robot_Feedback = RobotFeedback()
         self.drive_data = {"w": 0, "a": 0, "s": 0, "d": 0, "b": 0}
 
+        self.check_index, self.status_index = 0 , 0
+        self.check_time = 0.3
+        self.prev_health_check_time = rospy.Time.now()
+
+        self.emergency_cause,  self.prev_emergency_cause = "", ""
+        self.emergency_check_time = 0.3
+        self.prev_emergency_cause_time = rospy.Time.now()
+
+        self.init_time = rospy.Time.now().to_sec()
+        self.elapsed_time = "00:00:00"
+
     def health_check_srv(self, req: health_checkRequest):
         next_mode = req.nextMode
 
-        if next_mode not in _nextModeArray:
-            rospy.logerr(f"Invalid mode: {next_mode}")
+        if next_mode not in _nextModeArray or next_mode == self.robot_state:
+            rospy.logerr(f"Invalid or Repeated Mode: {next_mode}")
             return health_checkResponse(checks=[])
 
         rospy.logdebug(f"health_check_srv: {next_mode}")
@@ -127,44 +140,78 @@ class Robot_Node:
     
     def publish_health_check(self):
 
+        self.steering_health_check, self.braking_health_check = self.Robot_Feedback.getHealthCheck()
+        
         if self._modeToBeChecked == []:
             return
+
+        if rospy.Time.now() - self.prev_health_check_time < rospy.Duration(self.check_time):
+            return
+        self.prev_health_check_time = rospy.Time.now()
 
         status_checks = {
             "CONNECTION_QUALITY": lambda: self.connection_quality >= 70,
             "HARDWARE": lambda: self.steering_health_check
             and self.braking_health_check,
-            "BATTERY_LEVEL": lambda: self.battery_percentage > 30,
+            "BATTERY_LEVEL": lambda: self.battery_capacity > 30,
         }
 
-        for check in self._modeToBeChecked:
-            for i in range(3):
-                if i == 2:
-                    status = (
-                        _modeCheckStatus[2]
-                        if status_checks[check]()
-                        else _modeCheckStatus[3]
-                    )
+        if self.check_index < len(self._modeToBeChecked):
+            check = self._modeToBeChecked[self.check_index]
+            if self.status_index < (len(_modeCheckStatus) -1):
+
+                if self.status_index == 2:
+                    status = (_modeCheckStatus[2]if status_checks[check]()else _modeCheckStatus[3])
+
                     if status == _modeCheckStatus[3]:
                         error_messages = {
                             "CONNECTION_QUALITY": "connection error",
-                            "HARDWARE": "hardware error",
+                            "HARDWARE": "steering error" if not self.steering_health_check else "brake error" if not self.braking_health_check else "hardware error",
                             "BATTERY_LEVEL": "low battery",
                         }
-                        print(error_messages[check])
+                        status += f":{error_messages[check]}"
                 else:
-                    status = _modeCheckStatus[i]
+                    status = _modeCheckStatus[self.status_index]
+                
+                # print(f"{check}:{status}")
+                self._health_check_pub.publish(f"{check}:{status}")
+                self.status_index += 1
+            else:
+                self.status_index = 0
+                self.check_index += 1
+        else:
+            self.check_index = 0
+            self.status_index = 0
+            self._modeToBeChecked = []
 
-                self._health_check_pub.publish(f"{check}: {status}")
-                rospy.sleep(0.3)
+        
+    def publish_emergency_cause(self):
+        if rospy.Time.now() - self.prev_emergency_cause_time < rospy.Duration(self.emergency_check_time):
+            return
+        self.prev_emergency_cause_time = rospy.Time.now()
 
-        self._modeToBeChecked = []
+        self.emergency_cause = self.Robot_Feedback.getEmergencyCause()
+
+        if self.emergency_cause != self.prev_emergency_cause:
+            
+            self.robot_state = self.old_robot_state if self.emergency_cause == "" else "EMERGENCY"
+
+            self.prev_emergency_cause = deepcopy(self.emergency_cause)
+            self._emetgency_cause_pub.publish(self.emergency_cause)
+            # print("emergency_cause: ", self.emergency_cause)
 
     def publish_robot_state(self):
+
         if self.robot_state != self.prev_robot_state:
-            self._robot_state_pub.publish(self.robot_state)
-            self.prev_robot_state = deepcopy(self.robot_state)
+            if self.robot_state != "EMERGENCY":
+                self.old_robot_state = self.robot_state
+
+            if self.robot_state != "KEY_OFF": # reset the timer
+                self.init_time = rospy.Time.now().to_sec()
+
             print("robot_state: ", self.robot_state)
+            self.prev_robot_state = deepcopy(self.robot_state)
+            self._robot_state_pub.publish(self.robot_state)
 
     def publish_teleop(self):
         self.Robot_Control.teleop_control(self.teleoperator_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
@@ -173,13 +220,34 @@ class Robot_Node:
         self.steering_pub.publish(self.robot_steering)
         self.emergency_brake_pub.publish(self.robot_emergency_brake)
         
+    def publish_robot_operational_details(self):
+        self.elapsed_time = self.update_elapsed_time()
+        self.robot_operational_details = self.Robot_Feedback.getRobotFeedback(self.elapsed_time)
+        self._robot_operational_details_pub.publish(self.robot_operational_details)
         
+    def update_elapsed_time(self):
+        if self.robot_state == "KEY_OFF":
+            return
+        t = rospy.Time.now().to_sec()
+        start_time = t - self.init_time
+        start_time = round(start_time, 2)
+        elapsed_time = datetime.timedelta(seconds=int(start_time))
+        time_str = str(elapsed_time)
+        # print("time: ", time_str)
+        return time_str
 
     def update(self):
+
         self.publish_robot_state()
         self.publish_health_check()
+        self.publish_emergency_cause()
+        self.publish_robot_operational_details()
+
+        self.battery_capacity = self.Robot_Feedback.getBatteryCapacity()
         self.publish_teleop()
-        self.steering_health_check, self.braking_health_check = self.Robot_Feedback.getHealthCheck()
+
+        # print("looping")
+        
 
 
 
