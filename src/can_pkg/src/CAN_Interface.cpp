@@ -555,17 +555,17 @@ string CAN_Interface::getSteeringError(WheelSteeringStatus &steeringError)
    string error = "";
 
    if (steeringError.MotorOverTemperature)
-      error += "MotorOverTemperature";
+      error += "Motor Over Temperature";
    else if (steeringError.MotorOverCurrent)
-      error += "MotorOverCurrent";
+      error += "Motor Over Current";
    else if (steeringError.PositionSensorDemaged)
-      error += "PositionSensorDemaged";
+      error += "Position Sensor Demaged";
    else if (steeringError.PositionSensorResponse)
-      error += "PositionSensorResponse";
+      error += "Position Sensor Response";
    else if (steeringError.MotorError)
-      error += "MotorError";
+      error += "Motor Error";
    else if (steeringError.MotorConnectionLoss)
-      error += "MotorConnectionLoss";
+      error += "Motor Connection Loss";
    else
       error += "ok";
    return error;
@@ -576,13 +576,13 @@ string CAN_Interface::getBrakingError(WheelBrakingStatus &brakingError)
    string error = "";
 
    if (brakingError.MotorOverTemperature)
-      error += "MotorOverTemperature, ";
+      error += "Motor Over Temperature";
    else if (brakingError.MotorOverCurrent)
-      error += "MotorOverCurrent, ";
+      error += "Motor Over Current";
    else if (brakingError.MotorError)
-      error += "MotorError, ";
+      error += "Motor Error";
    else if (brakingError.MotorConnectionLoss)
-      error += "MotorConnectionLoss, ";
+      error += "Motor Connection Loss";
    else
       error += "ok";
    return error;
@@ -706,7 +706,6 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             feedback.braking_health_check.data = Vehicle.BrakingSystemState.SystemReady;
 
             feedback.driving_mode = getDrivingMode(feedback.robot_speed.data, feedback.brake_percentage, Vehicle.DesiredCarParameters.DesiredVelocity);
-
 
             // TODO: add feedback for lights
             cout << "WheelFrontRight.DrivingVelocity: " << Vehicle.WheelFrontRight.Driving.DrivingVelocity << endl;

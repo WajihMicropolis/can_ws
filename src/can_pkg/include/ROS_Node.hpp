@@ -9,7 +9,7 @@
 #include "std_msgs/Int16MultiArray.h"
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/BatteryState.h"
-
+#include "business_layer_pkg/health_check.h"
 #include "CAN_Interface.hpp"
 
 class ROS_Node
@@ -20,7 +20,8 @@ private:
     ros::Subscriber _velocity_sub,
         _steering_sub,
         _emergency_brake_sub,
-        _door_control_sub;
+        _door_control_sub,
+        _robot_state_sub;
 
     ros::Publisher _motorsSpeed_pub,
         _steering_angle_pub,
@@ -36,6 +37,10 @@ private:
         _steering_health_check_pub,
         _braking_health_check_pub,
         _drive_mode_pub;
+
+    ros::ServiceClient _health_check_client;
+    business_layer_pkg::health_check _health_check_srv;
+    std::string _robot_state;
 
     ros::Time _sendTime,
         _publishTime;
@@ -79,6 +84,7 @@ private:
     void getRosParam(std::string paramName, auto &paramValue);
     void printOnTerminal();
     void publishFeedback(CAN_Interface::CANFeedback &feedback);
+    void robotStateCallback(const std_msgs::String::ConstPtr &robotStateMsg);
 
 public:
     ROS_Node(/* args */);
