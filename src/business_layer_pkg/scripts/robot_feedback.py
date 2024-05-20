@@ -159,7 +159,7 @@ class RobotFeedback:
             print("Failed to ping host:", e)
             return None, None
     
-    def calculate_connection_quality(avg_rtt, packet_loss):
+    def calculate_connection_quality(self,avg_rtt, packet_loss):
         # Initial connection quality percentage
         quality = 100
 
@@ -184,6 +184,8 @@ class RobotFeedback:
     def getConnectionQuality(self):
         avg_rtt, packet_loss = self.ping_host(self.ip)
         if avg_rtt is not None and packet_loss is not None:
+            # print(f"Average RTT: {avg_rtt} ms")
+            # print(f"Packet Loss: {packet_loss}%")
             connection = self.calculate_connection_quality(avg_rtt, packet_loss)
             return connection
         return 0
