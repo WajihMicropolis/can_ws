@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import rospy
 import json
+import subprocess
+import re
 
 from std_msgs.msg import String
 from std_msgs.msg import Float32, Int16MultiArray, Bool
@@ -12,8 +14,8 @@ PI = 3.14159
 wheel_radius = 0.24 # in meters
 
 class RobotFeedback:
-    def __init__(self):
-        
+    def __init__(self,_ip):
+        self.ip = _ip
         self.steering_health_check = False
         self.braking_health_check = False
         self.battery_capacity = 100
@@ -137,9 +139,59 @@ class RobotFeedback:
         # print("braking_health_check: ", self.braking_health_check)
         return self.steering_health_check, self.braking_health_check
     
+    def ping_host(self,ip, count=1):
+        try:
+            # Run the ping command
+            output = subprocess.check_output(['ping', '-c', str(count), ip], universal_newlines=True)
+            
+            # Parse the output
+            # Extract the average round-trip time (RTT)
+            rtt_match = re.search(r'rtt min/avg/max/mdev = .*?/([0-9.]+)/', output)
+            avg_rtt = float(rtt_match.group(1)) if rtt_match else None
+            
+            # Extract packet loss percentage
+            loss_match = re.search(r'(\d+)% packet loss', output)
+            packet_loss = int(loss_match.group(1)) if loss_match else None
+            
+            return avg_rtt, packet_loss
+
+        except subprocess.CalledProcessError as e:
+            print("Failed to ping host:", e)
+            return None, None
+    
+    def calculate_connection_quality(avg_rtt, packet_loss):
+        # Initial connection quality percentage
+        quality = 100
+
+        # Decrease quality based on packet loss
+        if packet_loss:
+            quality -= packet_loss * 1.5  # Packet loss has a significant impact
+
+        # Decrease quality based on RTT
+        if avg_rtt:
+            if avg_rtt < 100:
+                quality -= avg_rtt * 0.1  # Minor impact for low RTT
+            elif avg_rtt < 300:
+                quality -= avg_rtt * 0.2  # Moderate impact for medium RTT
+            else:
+                quality -= avg_rtt * 0.5  # High impact for high RTT
+
+        # Ensure quality is within 0-100 range
+        quality = max(0, min(100, quality))
+
+        return quality
+
+    def getConnectionQuality(self):
+        avg_rtt, packet_loss = self.ping_host(self.ip)
+        if avg_rtt is not None and packet_loss is not None:
+            connection = self.calculate_connection_quality(avg_rtt, packet_loss)
+            return connection
+        return 0
+
     def getRobotFeedback(self, elapsed_time):
         data['duration']['elapsed'] = elapsed_time
         data['timestamp'] = rospy.get_time()
+        data['connection_quality'] = self.getConnectionQuality()
         
         json_string = json.dumps(data)
 
@@ -149,7 +201,7 @@ class RobotFeedback:
 if __name__ == "__main__":
     try:
         robot = RobotFeedback()
-        test_data = "ok:ok:ok:MotorError"
+        test_data = "ok:ok:MotorError:MotorError"
         fr_state, fl_state, br_state, bl_state = test_data.split(':')
 
         print("fr_state: ", fr_state)

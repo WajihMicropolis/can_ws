@@ -76,8 +76,11 @@ class Robot_Node:
 
         self._modeToBeChecked = []
         self.gear = 1
+
+        self.ip = "10.20.0.30"
         self.Robot_Control = Robot_Control()
-        self.Robot_Feedback = RobotFeedback()
+        self.Robot_Feedback = RobotFeedback(self.ip)
+
         self.drive_data = {"w": 0, "a": 0, "s": 0, "d": 0, "b": 0}
 
         self.check_index, self.status_index = 0 , 0
