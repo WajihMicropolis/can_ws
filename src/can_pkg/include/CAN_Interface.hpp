@@ -119,17 +119,7 @@ private:
    CANBus *canBus;
    // CANMessage cMessage;
    string doorStateStr[4] = {"opened", "closed", "opening", "closing"};
-   string steeringStatus[6] = {"MotorOverTemperature",
-                               "MotorOverCurrent",
-                               "PositionSensorDemaged",
-                               "PositionSensorResponse",
-                               "MotorError",
-                               "MotorConnectionLoss"};
-
-   string brakingStatus[4] = {"MotorOverTemperature",
-                              "MotorOverCurrent",
-                              "MotorError",
-                              "MotorConnectionLoss"};
+   
 
    CANUSB_SPEED canusb_int_to_speed(int speed);
    struct timespec timespec_diff(struct timespec start, struct timespec end);

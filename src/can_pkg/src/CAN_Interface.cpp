@@ -670,7 +670,6 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             feedback.battery_state.voltage = Vehicle.PDU.BatteryStateOfCharge.BatteryVoltage;
             feedback.battery_state.current = Vehicle.PDU.BatteryStateOfCharge.BatteryCurrent;
             feedback.battery_state.percentage = Vehicle.PDU.BatteryStateOfCharge.BatteryChargePercentage;
-            feedback.battery_state.temperature = Vehicle.PDU.BatteryStateOfCharge.BatteryTemperature;
             feedback.battery_state.capacity = Vehicle.PDU.BatteryStateOfCharge.Range;
 
             feedback.rpy.data.clear();
