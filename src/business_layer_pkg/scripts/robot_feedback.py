@@ -16,20 +16,32 @@ wheel_radius = 0.24 # in meters
 class RobotFeedback:
     def __init__(self,_ip):
         self.ip = _ip
+
         self.steering_health_check = False
         self.braking_health_check = False
         self.battery_capacity = 100
+        self.ultrasonic_threshold = 100
+        self.robot_velocity = 0
+        self.robot_speed_feedback = 0
         self.steering_state = {
-            "front right": "ok",
-            "front left": "ok",
-            "back right": "ok",
-            "back left": "ok"
+            "front right": "OK",
+            "front left": "OK",
+            "back right": "OK",
+            "back left": "OK"
         }
         self.brake_state = {
-            "front right": "ok",
-            "front left": "ok",
-            "back right": "ok",
-            "back left": "ok"
+            "front right": "OK",
+            "front left": "OK",
+            "back right": "OK",
+            "back left": "OK"
+        }
+        self.ultrasonic = {
+            "front_right": 0,
+            "front_left": 0,
+            "back_right": 0,
+            "back_left": 0,
+            "right": 0,
+            "left": 0
         }
 
         self.motors_speed_sub           = rospy.Subscriber("feedback/motors_speed",   Int16MultiArray, self.motors_speed_cb)
@@ -44,7 +56,7 @@ class RobotFeedback:
         self.door_state_sub             = rospy.Subscriber("feedback/door_state",     String, self.door_state_cb)
         self.steering_state_sub         = rospy.Subscriber("feedback/steering_state",    String, self.steering_state_cb)
         self.brake_state_sub            = rospy.Subscriber("feedback/brake_state",   String, self.brake_state_cb)
-        self.driving_mode_sub           = rospy.Subscriber("feedback/driving_mode",    String, self.driving_mode_cb)
+        # self.driving_mode_sub           = rospy.Subscriber("feedback/driving_mode",    String, self.driving_mode_cb)
         self.steering_health_check_sub  = rospy.Subscriber("feedback/steering_health_check",  Bool,  lambda msg : setattr(self, 'steering_health_check', msg.data))
         self.braking_health_check_sub   = rospy.Subscriber("feedback/braking_health_check",   Bool, lambda msg: setattr(self, 'braking_health_check', msg.data))
 
@@ -69,20 +81,36 @@ class RobotFeedback:
         data['motors_details']['bl']['brake'] = msg.data[3]
 
     def ultrasonic_cb(self, msg: Int16MultiArray):
-        None
+        
+        #convert the ultrasonic data to binary
+        self.ultrasonic['front_right']  = 1 if msg.data[0] < self.ultrasonic_threshold and msg.data[0] > 0 else 0
+        self.ultrasonic['front_left']   = 1 if msg.data[1] < self.ultrasonic_threshold and msg.data[1] > 0 else 0
+        self.ultrasonic['back_right']   = 1 if msg.data[2] < self.ultrasonic_threshold and msg.data[2] > 0 else 0
+        self.ultrasonic['back_left']    = 1 if msg.data[3] < self.ultrasonic_threshold and msg.data[3] > 0 else 0
+        self.ultrasonic['right']        = 1 if msg.data[4] < self.ultrasonic_threshold and msg.data[4] > 0 else 0
+        self.ultrasonic['left']         = 1 if msg.data[5] < self.ultrasonic_threshold and msg.data[5] > 0 else 0
+        
+        data['surroundings']['front_center']    = self.ultrasonic['front_right'] or self.ultrasonic['front_left']
+        data['surroundings']['front_right']     = self.ultrasonic['front_right'] or self.ultrasonic['right']
+        data['surroundings']['front_left']      = self.ultrasonic['front_left']  or self.ultrasonic['left']
+        
+        data['surroundings']['back_center']     = self.ultrasonic['back_right'] or self.ultrasonic['back_left']
+        data['surroundings']['back_right']      = self.ultrasonic['back_right'] or self.ultrasonic['right']
+        data['surroundings']['back_left']       = self.ultrasonic['back_left']  or self.ultrasonic['left']
     
     def rpy_cb(self, msg: Int16MultiArray):
-        data['orientation']['roll'] = msg.data[0]
-        data['orientation']['pitch'] = msg.data[1]
-        data['orientation']['yaw']  = msg.data[2]
+        data['orientation']['roll']     = msg.data[0]
+        data['orientation']['pitch']    = msg.data[1]
+        data['orientation']['yaw']      = msg.data[2]
 
     def battery_cb(self, msg: BatteryState):
         self.battery_capacity = msg.capacity
         data['battery']['percentage'] = msg.capacity
+        data['temperature'] = msg.temperature
 
     def robot_speed_cb(self, msg:Float32):
-        speed_rpm = msg.data
-        speed_kmh = (speed_rpm * 2 * PI * wheel_radius * 60) / 1000
+        self.robot_speed_feedback = msg.data
+        speed_kmh = (self.robot_speed_feedback * 2 * PI * wheel_radius * 60) / 1000
         data['speed'] = int (speed_kmh)
 
     def door_state_cb(self, msg:String):
@@ -107,8 +135,19 @@ class RobotFeedback:
 
     def driving_mode_cb(self, msg:String):
         data['drivingMode'] = msg.data
-        None
 
+    def updateDriveMode(self, robot_velocity):
+        self.robot_velocity = robot_velocity
+        
+        if self.robot_velocity > 0 or self.robot_speed_feedback > 0:
+            data['drivingMode'] = "D"
+        
+        elif self.robot_velocity < 0 or self.robot_speed_feedback < 0:
+            data['drivingMode'] = "R"
+        
+        elif self.robot_velocity == 0 or self.robot_speed_feedback == 0:
+            data['drivingMode'] = "P"
+    
     def getEmergencyCause(self):
         emergency_cause = []
 

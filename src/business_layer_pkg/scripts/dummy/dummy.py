@@ -100,31 +100,18 @@ brakingError = [
     "MOTOR_CONNECTION_LOSS",
 ]
 
-steering_state = {
-    "front right": steeringError[0],
-    "front left": steeringError[0],
-    "back right": steeringError[0],
-    "back left": steeringError[0],
-}
-brake_state = {
-    "front right": brakingError[0],
-    "front left": brakingError[0],
-    "back right": brakingError[0],
-    "back left": brakingError[0],
-}
-
 emergency_causes = {
     "steering": {
-        "front right": steering_state["front right"],
-        "front left": steering_state["front left"],
-        "back right": steering_state["back right"],
-        "back left": steering_state["back left"],
+        "front right": "OK",
+        "front left": "OK",
+        "back right": "OK",
+        "back left": "OK",
     },
     "brake": {
-        "front right": brake_state["front right"],
-        "front left": brake_state["front left"],
-        "back right": brake_state["back right"],
-        "back left": brake_state["back left"],
+        "front right": "OK",
+        "front left": "OK",
+        "back right": "OK",
+        "back left": "OK",
     },
 }
 

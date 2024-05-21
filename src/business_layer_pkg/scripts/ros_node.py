@@ -64,6 +64,7 @@ class Robot_Node:
         self.robot_steering             = Float32()
         self.robot_emergency_brake      = Bool()
         self.robot_operational_details  = String()
+        self.prev_robot_operational_details = String()
 
         self.robot_state = "KEY_OFF"
         self.prev_robot_state = ""
@@ -226,6 +227,9 @@ class Robot_Node:
     def publish_robot_operational_details(self):
         self.elapsed_time = self.update_elapsed_time()
         self.robot_operational_details = self.Robot_Feedback.getRobotFeedback(self.elapsed_time)
+        self.Robot_Feedback.updateDriveMode(self.robot_velocity_rpm)
+        # if self.robot_operational_details != self.prev_robot_operational_details:
+        #     self.prev_robot_operational_details = deepcopy(self.robot_operational_details)
         self._robot_operational_details_pub.publish(self.robot_operational_details)
         
     def update_elapsed_time(self):

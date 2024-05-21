@@ -47,7 +47,7 @@ ROS_Node::ROS_Node(/* args */)
    this->_door_state_pub      = this->_nh->advertise<std_msgs::String>           ("feedback/door_state", _latch, _latch);
    this->_steering_state_pub  = this->_nh->advertise<std_msgs::String>           ("feedback/steering_state", _latch, _latch);
    this->_brake_state_pub     = this->_nh->advertise<std_msgs::String>           ("feedback/brake_state", _latch, _latch);
-   this->_drive_mode_pub      = this->_nh->advertise<std_msgs::String>           ("feedback/driving_mode", _latch, _latch);
+   // this->_drive_mode_pub      = this->_nh->advertise<std_msgs::String>           ("feedback/driving_mode", _latch, _latch);
 
    this->_steering_health_check_pub = this->_nh->advertise<std_msgs::Bool>("feedback/steering_health_check", _latch, _latch);
    this->_braking_health_check_pub  = this->_nh->advertise<std_msgs::Bool>("feedback/braking_health_check", _latch, _latch);
@@ -125,7 +125,7 @@ void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
    _steering_state_msg = feedback.steering_status;
    _door_state_msg = feedback.door_state;
    _brake_state_msg = feedback.braking_status;
-   _drive_mode_msg = feedback.driving_mode;
+   // _drive_mode_msg = feedback.driving_mode;
 
    _steering_health_check_msg = feedback.steering_health_check;
    _braking_health_check_msg = feedback.braking_health_check;
@@ -143,7 +143,7 @@ void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
    _steering_state_pub.publish(_steering_state_msg);
    _brake_state_pub.publish(_brake_state_msg);
    _door_state_pub.publish(_door_state_msg);
-   _drive_mode_pub.publish(_drive_mode_msg);
+   // _drive_mode_pub.publish(_drive_mode_msg);
 
    _steering_health_check_pub.publish(_steering_health_check_msg);
    _braking_health_check_pub.publish(_braking_health_check_msg);

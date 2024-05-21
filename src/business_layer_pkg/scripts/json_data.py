@@ -10,8 +10,8 @@ data = {
     "surroundings": {
         "front_center" :0, # 1
         "back_center" :  0, # 1
-        "front_right" : 1, # 1
-        "back_right" :  1, # 1
+        "front_right" : 0, # 1
+        "back_right" :  0, # 1
         "front_left" : 0, # 1
         "back_left" :  0 # 1
     },
@@ -31,7 +31,7 @@ data = {
     },
     "duration": {
         # Time format 24
-        "elapsed": "01:21:55",
+        "elapsed": "00:00:00",
         "remaining": "00:42:12",
         "estimated": "02:04:07"
     },

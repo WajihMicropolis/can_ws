@@ -588,20 +588,20 @@ string CAN_Interface::getBrakingError(WheelBrakingStatus &brakingError)
    return error;
 }
 
-String CAN_Interface::getDrivingMode(float &_robotSpeedFb, Int16MultiArray &_brakePercentageFb, float &_robotSpeedCommand)
-{
-   String drivingMode;
-   float brake_percentage_avg = (_brakePercentageFb.data[0] + _brakePercentageFb.data[1] + _brakePercentageFb.data[2] + _brakePercentageFb.data[3]) / 4;
+// String CAN_Interface::getDrivingMode(float &_robotSpeedFb, Int16MultiArray &_brakePercentageFb, float &_robotSpeedCommand)
+// {
+//    String drivingMode;
+//    float brake_percentage_avg = (_brakePercentageFb.data[0] + _brakePercentageFb.data[1] + _brakePercentageFb.data[2] + _brakePercentageFb.data[3]) / 4;
 
-   if (_robotSpeedFb == 0 && brake_percentage_avg >= 0)
-      drivingMode.data = "P";
-   else if ((_robotSpeedFb > 0 && brake_percentage_avg == 0) || _robotSpeedCommand > 0)
-      drivingMode.data = "D";
-   else if ((_robotSpeedFb < 0 && brake_percentage_avg == 0) || _robotSpeedCommand < 0)
-      drivingMode.data = "R";
+//    if (_robotSpeedFb == 0 && brake_percentage_avg >= 0)
+//       drivingMode.data = "P";
+//    else if ((_robotSpeedFb > 0 && brake_percentage_avg == 0) || _robotSpeedCommand > 0)
+//       drivingMode.data = "D";
+//    else if ((_robotSpeedFb < 0 && brake_percentage_avg == 0) || _robotSpeedCommand < 0)
+//       drivingMode.data = "R";
 
-   return drivingMode;
-}
+//    return drivingMode;
+// }
 
 pair<string, string> CAN_Interface::steeringBrakingStatus()
 {
@@ -704,7 +704,7 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             feedback.steering_health_check.data = Vehicle.SteeringSystemState.SystemReady;
             feedback.braking_health_check.data = Vehicle.BrakingSystemState.SystemReady;
 
-            feedback.driving_mode = getDrivingMode(feedback.robot_speed.data, feedback.brake_percentage, Vehicle.DesiredCarParameters.DesiredVelocity);
+            // feedback.driving_mode = getDrivingMode(feedback.robot_speed.data, feedback.brake_percentage, Vehicle.DesiredCarParameters.DesiredVelocity);
 
             // TODO: add feedback for lights
             cout << "WheelFrontRight.DrivingVelocity: " << Vehicle.WheelFrontRight.Driving.DrivingVelocity << endl;

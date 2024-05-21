@@ -141,7 +141,9 @@ class Robot_Control:
         steering.data = self.robot_steering_angle
         emergency_brake.data = self.robot_emergency_brake.data
         
-
+    # def priority_control(self, teleoperator_command = Twist(), navigation_command = Twist(), cmd_vel = Twist()):
+        
+    #     pass
 if __name__ == "__main__":
     try:
         robot = Robot_Control()
