@@ -121,6 +121,8 @@ class RobotFeedback:
         # print("door state: ", data['door_state'])
 
     def steering_state_cb(self, msg:String):
+        if not msg.data:
+            return
         split_data = msg.data.split(':')
         # print("steering_state: ", split_data)
         self.emergency_causes["steering"]['front right']  = split_data[0]
@@ -130,6 +132,8 @@ class RobotFeedback:
         # print("steering_state: ", self.steering_state)
             
     def brake_state_cb(self, msg:String):
+        if not msg.data:
+            return
         split_data = msg.data.split(':')
         self.emergency_causes["brake"]['front right']  = split_data[0]
         self.emergency_causes["brake"]['front left']   = split_data[1]
@@ -141,7 +145,9 @@ class RobotFeedback:
 
     def updateDriveMode(self, robot_velocity):
         self.robot_velocity = robot_velocity
-        
+        # print("rob`ot_velocity: ", self.robot_velocity)
+        # print("robo`t_speed_feedback: ", self.robot_speed_feedback)
+
         if self.robot_velocity > 0 or self.robot_speed_feedback > 0:
             data['drivingMode'] = "D"
         

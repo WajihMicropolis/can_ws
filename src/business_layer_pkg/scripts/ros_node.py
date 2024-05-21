@@ -229,7 +229,7 @@ class Robot_Node:
     def publish_robot_operational_details(self):
         self.elapsed_time = self.update_elapsed_time()
         self.robot_operational_details = self.Robot_Feedback.getRobotFeedback(self.elapsed_time)
-        self.Robot_Feedback.updateDriveMode(self.robot_velocity_rpm)
+        self.Robot_Feedback.updateDriveMode(self.robot_velocity_rpm.data)
         # if self.robot_operational_details != self.prev_robot_operational_details:
         #     self.prev_robot_operational_details = deepcopy(self.robot_operational_details)
         self._robot_operational_details_pub.publish(self.robot_operational_details)

@@ -23,7 +23,7 @@ ROS_Node::ROS_Node(/* args */)
                                                                         _emergency_brake = emergencyBrakeMsg->data;
                                                                         // std::cout<<"emergency_brake: " <<_emergency_brake<<std::endl;
                                                                         if (emergencyBrakeMsg->data)
-                                                                           this->_velocity = 0, this->_steering = 0; });
+                                                                           this->_velocity = 0; });
 
    this->_door_control_sub = this->_nh->subscribe<std_msgs::Bool>("robot/door_control", 1, [&](const std_msgs::Bool::ConstPtr &doorControlMsg)
                                                                   {
