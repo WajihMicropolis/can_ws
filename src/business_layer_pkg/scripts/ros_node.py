@@ -94,12 +94,14 @@ class Robot_Node:
 
         self.init_time = rospy.Time.now().to_sec()
         self.elapsed_time = "00:00:00"
+        self.publish_rate = rospy.Time.now()
 
     def health_check_srv(self, req: health_checkRequest):
         next_mode = req.nextMode
-
-        if next_mode not in _nextModeArray or next_mode == self.robot_state:
-            rospy.logerr(f"Invalid or Repeated Mode: {next_mode}")
+        
+        #! or next_mode == self.robot_state
+        if next_mode not in _nextModeArray :
+            rospy.logerr(f"Invalid : {next_mode}")
             return health_checkResponse(checks=[])
 
         rospy.logdebug(f"health_check_srv: {next_mode}")
@@ -248,7 +250,10 @@ class Robot_Node:
         self.publish_robot_state()
         self.publish_health_check()
         self.publish_emergency_cause()
-        self.publish_robot_operational_details()
+        
+        if rospy.Time.now() - self.publish_rate > rospy.Duration(0.2):
+            self.publish_robot_operational_details()
+            self.publish_rate = rospy.Time.now()
 
         self.battery_capacity = self.Robot_Feedback.getBatteryCapacity()
         self.publish_teleop()

@@ -620,9 +620,17 @@ pair<string, string> CAN_Interface::steeringBrakingStatus()
    brakingStatus.push_back(getBrakingError(Vehicle.WheelRearLeft.Braking.BrakingStatus));
 
    for (int i = 0; i < steeringStatus.size(); i++)
-   {
-      _steeringStatus += steeringStatus[i] + ":";
-      _brakingStatus += brakingStatus[i] + ":";
+   {  
+      if(i == steeringStatus.size() - 1)
+      {
+         _steeringStatus += steeringStatus[i];
+         _brakingStatus += brakingStatus[i];
+      }
+      else
+      {
+         _steeringStatus += steeringStatus[i] + ":" ;
+         _brakingStatus += brakingStatus[i] + ":";
+      }
    }
    return make_pair(_steeringStatus, _brakingStatus);
 }

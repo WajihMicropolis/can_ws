@@ -5,7 +5,7 @@ import subprocess
 import re
 
 from std_msgs.msg import String
-from std_msgs.msg import Float32, Int16MultiArray, Bool
+from std_msgs.msg import Float32, Int16MultiArray, Bool, Float32MultiArray
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import BatteryState, Imu
 from json_data import data
@@ -48,7 +48,7 @@ class RobotFeedback:
         self.steering_angle_sub         = rospy.Subscriber("feedback/steering_angle",     Int16MultiArray, self.steering_angle_cb)
         self.brake_percentage_sub       = rospy.Subscriber("feedback/brake_percentage",   Int16MultiArray, self.brake_percentage_cb)
         self.ultrasonic_sub             = rospy.Subscriber("feedback/ultrasonic",     Int16MultiArray, self.ultrasonic_cb)
-        self.rpy_sub                    = rospy.Subscriber("feedback/rpy",     Int16MultiArray, self.rpy_cb)
+        self.rpy_sub                    = rospy.Subscriber("feedback/rpy",     Float32MultiArray, self.rpy_cb)
 
         self.battery_sub                = rospy.Subscriber("feedback/battery",    BatteryState, self.battery_cb)
         # self.imu_sub                    = rospy.Subscriber("feedback/imu",    Imu, self.imu_cb)
@@ -104,8 +104,8 @@ class RobotFeedback:
         data['orientation']['yaw']      = msg.data[2]
 
     def battery_cb(self, msg: BatteryState):
-        self.battery_capacity = msg.capacity
-        data['battery']['percentage'] = msg.capacity
+        self.battery_capacity = msg.percentage
+        data['battery']['percentage'] = msg.percentage
         data['temperature'] = msg.temperature
 
     def robot_speed_cb(self, msg:Float32):
@@ -115,16 +115,16 @@ class RobotFeedback:
 
     def door_state_cb(self, msg:String):
         data['door_state'] = msg.data
-        print("door state: ", data['door_state'])
+        # print("door state: ", data['door_state'])
 
     def steering_state_cb(self, msg:String):
         split_data = msg.data.split(':')
-        print("steering_state: ", split_data)
+        # print("steering_state: ", split_data)
         self.steering_state['front right']  = split_data[0]
         self.steering_state['front left']   = split_data[1]
         self.steering_state['back right']   = split_data[2]
         self.steering_state['back left']    = split_data[3]
-        print("steering_state: ", self.steering_state)
+        # print("steering_state: ", self.steering_state)
             
     def brake_state_cb(self, msg:String):
         split_data = msg.data.split(':')
