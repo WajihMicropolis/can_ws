@@ -555,19 +555,19 @@ string CAN_Interface::getSteeringError(WheelSteeringStatus &steeringError)
    string error = "";
 
    if (steeringError.MotorOverTemperature)
-      error += "Motor Over Temperature";
+      error += "MOTOR_OVER_TEMPERATURE";
    else if (steeringError.MotorOverCurrent)
-      error += "Motor Over Current";
+      error += "MOTOR_OVER_CURRENT";
    else if (steeringError.PositionSensorDemaged)
-      error += "Position Sensor Demaged";
+      error += "POSITION_SENSOR_DAMAGED";
    else if (steeringError.PositionSensorResponse)
-      error += "Position Sensor Response";
+      error += "POSITION_SENSOR_RESPONSE";
    else if (steeringError.MotorError)
-      error += "Motor Error";
+      error += "MOTOR_ERROR";
    else if (steeringError.MotorConnectionLoss)
-      error += "Motor Connection Loss";
+      error += "MOTOR_CONNECTION_LOSS";
    else
-      error += "ok";
+      error += "OK";
    return error;
 }
 
@@ -576,15 +576,15 @@ string CAN_Interface::getBrakingError(WheelBrakingStatus &brakingError)
    string error = "";
 
    if (brakingError.MotorOverTemperature)
-      error += "Motor Over Temperature";
+      error += "MOTOR_OVER_TEMPERATURE";
    else if (brakingError.MotorOverCurrent)
-      error += "Motor Over Current";
+      error += "MOTOR_OVER_CURRENT";
    else if (brakingError.MotorError)
-      error += "Motor Error";
+      error += "MOTOR_ERROR";
    else if (brakingError.MotorConnectionLoss)
-      error += "Motor Connection Loss";
+      error += "MOTOR_CONNECTION_LOSS";
    else
-      error += "ok";
+      error += "OK";
    return error;
 }
 

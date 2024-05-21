@@ -23,18 +23,7 @@ class RobotFeedback:
         self.ultrasonic_threshold = 100
         self.robot_velocity = 0
         self.robot_speed_feedback = 0
-        self.steering_state = {
-            "front right": "OK",
-            "front left": "OK",
-            "back right": "OK",
-            "back left": "OK"
-        }
-        self.brake_state = {
-            "front right": "OK",
-            "front left": "OK",
-            "back right": "OK",
-            "back left": "OK"
-        }
+
         self.ultrasonic = {
             "front_right": 0,
             "front_left": 0,
@@ -44,6 +33,20 @@ class RobotFeedback:
             "left": 0
         }
 
+        self.emergency_causes = {
+            "steering": {
+                "front right":  "OK",
+                "front left":   "OK",
+                "back right":   "OK",
+                "back left":    "OK",
+            },
+            "brake": {
+                "front right":  "OK",
+                "front left":   "OK",
+                "back right":   "OK",
+                "back left":    "OK",
+            },
+        }
         self.motors_speed_sub           = rospy.Subscriber("feedback/motors_speed",   Int16MultiArray, self.motors_speed_cb)
         self.steering_angle_sub         = rospy.Subscriber("feedback/steering_angle",     Int16MultiArray, self.steering_angle_cb)
         self.brake_percentage_sub       = rospy.Subscriber("feedback/brake_percentage",   Int16MultiArray, self.brake_percentage_cb)
@@ -120,18 +123,18 @@ class RobotFeedback:
     def steering_state_cb(self, msg:String):
         split_data = msg.data.split(':')
         # print("steering_state: ", split_data)
-        self.steering_state['front right']  = split_data[0]
-        self.steering_state['front left']   = split_data[1]
-        self.steering_state['back right']   = split_data[2]
-        self.steering_state['back left']    = split_data[3]
+        self.emergency_causes["steering"]['front right']  = split_data[0]
+        self.emergency_causes["steering"]['front left']   = split_data[1]
+        self.emergency_causes["steering"]['back right']   = split_data[2]
+        self.emergency_causes["steering"]['back left']    = split_data[3]
         # print("steering_state: ", self.steering_state)
             
     def brake_state_cb(self, msg:String):
         split_data = msg.data.split(':')
-        self.brake_state['front right']  = split_data[0]
-        self.brake_state['front left']   = split_data[1]
-        self.brake_state['back right']   = split_data[2]
-        self.brake_state['back left']    = split_data[3]
+        self.emergency_causes["brake"]['front right']  = split_data[0]
+        self.emergency_causes["brake"]['front left']   = split_data[1]
+        self.emergency_causes["brake"]['back right']   = split_data[2]
+        self.emergency_causes["brake"]['back left']    = split_data[3]
 
     def driving_mode_cb(self, msg:String):
         data['drivingMode'] = msg.data
