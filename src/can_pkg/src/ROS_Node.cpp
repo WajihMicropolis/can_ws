@@ -25,7 +25,7 @@ ROS_Node::ROS_Node(/* args */)
                                                                         if (emergencyBrakeMsg->data)
                                                                            this->_velocity = 0; });
 
-   this->_door_control_sub = this->_nh->subscribe<std_msgs::Bool>("robot/door_control", 1, [&](const std_msgs::Bool::ConstPtr &doorControlMsg)
+   this->_door_control_sub = this->_nh->subscribe<std_msgs::Int8>("robot/door_control", 1, [&](const std_msgs::Int8::ConstPtr &doorControlMsg)
                                                                   {
                                                                      _door_control = doorControlMsg->data;
                                                                      //   std::cout<<"door_control: " <<_door_control<<std::endl;
@@ -124,6 +124,7 @@ void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
 
    _steering_state_msg = feedback.steering_status;
    _door_state_msg = feedback.door_state;
+   // cout<<"door state: "<<_door_state_msg<<endl;
    _brake_state_msg = feedback.braking_status;
    // _drive_mode_msg = feedback.driving_mode;
 

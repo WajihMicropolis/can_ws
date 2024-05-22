@@ -4,6 +4,7 @@
 #include "ros/ros.h"
 #include "std_msgs/Float32.h"
 #include "std_msgs/Int32.h"
+#include "std_msgs/Int8.h"
 #include "std_msgs/Bool.h"
 #include "std_msgs/String.h"
 #include "std_msgs/Int16MultiArray.h"
@@ -78,8 +79,8 @@ private:
 
     int idle_counter = 0;
     float _speed_fb = 0.0;
-    bool _emergency_brake = false,
-         _door_control = false;
+    bool _emergency_brake = false;
+    uint8_t _door_control = false;
 
     void getRosParam(std::string paramName, auto &paramValue);
     void printOnTerminal();

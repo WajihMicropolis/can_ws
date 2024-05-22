@@ -522,7 +522,7 @@ void CAN_Interface::sendEmergencyBrake(bool emergencyBrake)
    canBus->SendCANMessage(cMessage);
 }
 
-void CAN_Interface::sendDoorControl(bool doorControl)
+void CAN_Interface::sendDoorControl(uint8_t doorControl)
 {
    // TODO re-check with najib
    cMessage.CANMessgeID = canBus->EncodeCANID(canBus->MRCU, ORIN_DOOR_LIFTER_COMMAND, canBus->Stream); // receiber board id, message number (from CanBus.h), status of the message (from google form)
@@ -530,7 +530,7 @@ void CAN_Interface::sendDoorControl(bool doorControl)
 
    Vehicle.Door_Lifter.DoorCommand = doorControl; // from ros
 
-   CONVERTERu16tou8(&cMessage.CANMessageData[0], canBus->float_encode(Vehicle.Door_Lifter.DoorCommand)); // velocity m/s
+   CONVERTERu16tou8(&cMessage.CANMessageData[0], (Vehicle.Door_Lifter.DoorCommand)); // velocity m/s
 
    canBus->SendCANMessage(cMessage);
 }
@@ -703,6 +703,7 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
 
             feedback.robot_speed.data = getRobotSpeed(feedback.motors_speed);
 
+            cout<<"Vehicle.Door_Lifter.DoorStatus" << Vehicle.Door_Lifter.DoorStatus << endl;
             feedback.door_state.data = doorStateStr[Vehicle.Door_Lifter.DoorStatus];
 
             _steering_braking_status = steeringBrakingStatus();

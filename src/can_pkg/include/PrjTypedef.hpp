@@ -248,7 +248,7 @@ typedef enum
 
 typedef struct
 {
-	bool DoorCommand;
+	uint8_t DoorCommand;
 	bool LifterCommand;
 	STATUS_DoorAnsLifter DoorStatus;
 	STATUS_DoorAnsLifter LifterStatus;

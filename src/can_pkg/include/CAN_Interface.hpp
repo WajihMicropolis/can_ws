@@ -170,7 +170,7 @@ public:
 
    void sendEmergencyBrake(bool emergencyBrake);
    void sendCmdVel(float velocity, float steering);
-   void sendDoorControl(bool doorControl);
+   void sendDoorControl(uint8_t doorControl);
 
    CAN_Interface(char *port);
    ~CAN_Interface();

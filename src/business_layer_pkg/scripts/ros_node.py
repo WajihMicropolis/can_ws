@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 
 from std_msgs.msg import String
-from std_msgs.msg import Float32, Int16MultiArray, Bool
+from std_msgs.msg import Float32, Int16MultiArray, Bool, Int8
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import BatteryState, Imu
 from business_layer_pkg.srv import (
@@ -48,7 +48,7 @@ class Robot_Node:
         self.velocity_pub           = rospy.Publisher("robot/velocity",Float32,queue_size=1 ,latch=True)
         self.steering_pub           = rospy.Publisher("robot/steering",Float32,queue_size=1,latch=True)
         self.emergency_brake_pub    = rospy.Publisher("robot/emergency_brake",Bool,queue_size=1,latch=True)
-        self.robot_door_control_pub = rospy.Publisher("robot/door_control",Bool,queue_size=1,latch=True)
+        self.robot_door_control_pub = rospy.Publisher("robot/door_control",Int8,queue_size=1,latch=True)
 
         #! subscribers from the Teleoperation software
         self.gear_sub           = rospy.Subscriber("gear", String, self.gear_cb)
@@ -197,7 +197,8 @@ class Robot_Node:
         self.prev_emergency_cause_time = rospy.Time.now()
 
         self.emergency_cause = self.Robot_Feedback.getEmergencyCause()
-
+        # print("emergency_cause: ", self.emergency_cause)
+        # print("prev_emergency_cause: ", self.prev_emergency_cause)
         if self.emergency_cause != self.prev_emergency_cause:
             
             self.robot_state = self.old_robot_state if self.emergency_cause == "" else "EMERGENCY"

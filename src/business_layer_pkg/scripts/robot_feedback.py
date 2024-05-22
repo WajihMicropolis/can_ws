@@ -5,7 +5,7 @@ import subprocess
 import re
 
 from std_msgs.msg import String
-from std_msgs.msg import Float32, Int16MultiArray, Bool, Float32MultiArray
+from std_msgs.msg import Float32, Int16MultiArray, Bool, Float32MultiArray, Int8
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import BatteryState, Imu
 from json_data import data
@@ -158,26 +158,28 @@ class RobotFeedback:
             data['drivingMode'] = "P"
     
     def getEmergencyCause(self):
-        emergency_cause = []
+        json_error = json.dumps(self.emergency_causes)
+        return json_error
+        # emergency_cause = []
 
-        if self.battery_capacity < 20:
-            emergency_cause.append("low battery")
-        # Check for errors in steering state
-        for motor_type, state in self.steering_state.items():
-            if state != "ok":
-                emergency_cause.append(f"steering motor:{motor_type} {state}")
+        # if self.battery_capacity < 20:
+        #     emergency_cause.append("low battery")
+        # # Check for errors in steering state
+        # for motor_type, state in self.steering_state.items():
+        #     if state != "ok":
+        #         emergency_cause.append(f"steering motor:{motor_type} {state}")
 
-        # Check for errors in brake state
-        for motor_type, state in self.brake_state.items():
-            if state != "ok":
-                emergency_cause.append(f"brake motor:{motor_type} {state}")
+        # # Check for errors in brake state
+        # for motor_type, state in self.brake_state.items():
+        #     if state != "ok":
+        #         emergency_cause.append(f"brake motor:{motor_type} {state}")
 
-        # If no errors found, return an empty string
-        if not emergency_cause:
-            return ""
+        # # If no errors found, return an empty string
+        # if not emergency_cause:
+        #     return ""
 
-        # Return all collected error causes as a single string
-        return "; ".join(emergency_cause)
+        # # Return all collected error causes as a single string
+        # return "; ".join(emergency_cause)
 
     def getBatteryCapacity(self):
         return self.battery_capacity
