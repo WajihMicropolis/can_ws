@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from copy import deepcopy
 import rospy
 import json
 import subprocess
@@ -19,7 +20,7 @@ class RobotFeedback:
 
         self.steering_health_check = False
         self.braking_health_check = False
-        self.battery_capacity = 100
+        self.battery_percentage = 100
         self.ultrasonic_threshold = 100
         self.robot_velocity = 0
         self.robot_speed_feedback = 0
@@ -46,7 +47,15 @@ class RobotFeedback:
                 "back right":   "OK",
                 "back left":    "OK",
             },
+            "low_battery": True # False
         }
+        self.prev_emergency_causes = deepcopy(self.emergency_causes)
+        self.steering_state_count = 0
+        self.brake_state_count = 0
+        self.battery_state_count = 0
+        self.emergency_cause_msg = String()
+        self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
+        
         self.motors_speed_sub           = rospy.Subscriber("feedback/motors_speed",   Int16MultiArray, self.motors_speed_cb)
         self.steering_angle_sub         = rospy.Subscriber("feedback/steering_angle",     Int16MultiArray, self.steering_angle_cb)
         self.brake_percentage_sub       = rospy.Subscriber("feedback/brake_percentage",   Int16MultiArray, self.brake_percentage_cb)
@@ -106,10 +115,22 @@ class RobotFeedback:
         data['orientation']['pitch']    = msg.data[1]
         data['orientation']['yaw']      = msg.data[2]
 
+    def checkBatteryState(self):
+        if self.battery_percentage < 30:
+            self.battery_state_count += 1
+            if self.battery_state_count > 20 and self.emergency_causes["low_battery"] == False:
+                self.emergency_causes["low_battery"] = True
+                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
+                self.battery_state_count = 0
+        
+    
     def battery_cb(self, msg: BatteryState):
-        self.battery_capacity = msg.percentage
+        if not msg.voltage:
+            return
+        self.battery_percentage = msg.percentage
         data['battery']['percentage'] = msg.percentage
         data['temperature'] = msg.temperature
+        self.checkBatteryState()
 
     def robot_speed_cb(self, msg:Float32):
         self.robot_speed_feedback = msg.data
@@ -120,6 +141,25 @@ class RobotFeedback:
         data['door_state'] = msg.data
         # print("door state: ", data['door_state'])
 
+    def checkErrorState(self):
+        
+        if self.emergency_causes["steering"] != self.prev_emergency_causes["steering"]:
+            self.steering_state_count += 1
+            
+            if self.steering_state_count > 20:
+                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
+                self.steering_state_count = 0
+                self.prev_emergency_causes["steering"] = deepcopy(self.emergency_causes["steering"])
+                
+        if self.emergency_causes["brake"] != self.prev_emergency_causes["brake"]:
+            self.brake_state_count += 1
+            
+            if self.brake_state_count > 20:
+                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
+                self.brake_state_count = 0
+                self.prev_emergency_causes["brake"] = deepcopy(self.emergency_causes["brake"])
+        
+            
     def steering_state_cb(self, msg:String):
         if not msg.data:
             return
@@ -129,16 +169,20 @@ class RobotFeedback:
         self.emergency_causes["steering"]['front left']   = split_data[1]
         self.emergency_causes["steering"]['back right']   = split_data[2]
         self.emergency_causes["steering"]['back left']    = split_data[3]
+        self.checkErrorState()
+        
         # print("steering_state: ", self.steering_state)
             
     def brake_state_cb(self, msg:String):
         if not msg.data:
             return
+        
         split_data = msg.data.split(':')
         self.emergency_causes["brake"]['front right']  = split_data[0]
         self.emergency_causes["brake"]['front left']   = split_data[1]
         self.emergency_causes["brake"]['back right']   = split_data[2]
         self.emergency_causes["brake"]['back left']    = split_data[3]
+        self.checkErrorState()
 
     def driving_mode_cb(self, msg:String):
         data['drivingMode'] = msg.data
@@ -158,31 +202,12 @@ class RobotFeedback:
             data['drivingMode'] = "P"
     
     def getEmergencyCause(self):
-        json_error = json.dumps(self.emergency_causes)
+        json_error = self.emergency_cause_msg.data
         return json_error
-        # emergency_cause = []
 
-        # if self.battery_capacity < 20:
-        #     emergency_cause.append("low battery")
-        # # Check for errors in steering state
-        # for motor_type, state in self.steering_state.items():
-        #     if state != "ok":
-        #         emergency_cause.append(f"steering motor:{motor_type} {state}")
-
-        # # Check for errors in brake state
-        # for motor_type, state in self.brake_state.items():
-        #     if state != "ok":
-        #         emergency_cause.append(f"brake motor:{motor_type} {state}")
-
-        # # If no errors found, return an empty string
-        # if not emergency_cause:
-        #     return ""
-
-        # # Return all collected error causes as a single string
-        # return "; ".join(emergency_cause)
 
     def getBatteryCapacity(self):
-        return self.battery_capacity
+        return self.battery_percentage
 
     def getHealthCheck(self):
         # print("steering_health_check: ", self.steering_health_check)

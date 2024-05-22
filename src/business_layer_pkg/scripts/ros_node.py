@@ -88,7 +88,11 @@ class Robot_Node:
         self.check_time = 0.3
         self.prev_health_check_time = rospy.Time.now()
 
-        self.emergency_cause,  self.prev_emergency_cause = "", ""
+        self.emergency_cause = self.Robot_Feedback.getEmergencyCause()
+        self.prev_emergency_cause = deepcopy(self.emergency_cause)
+        self.emergency_cause_ok = deepcopy(self.emergency_cause)
+        
+        
         self.emergency_check_time = 0.3
         self.prev_emergency_cause_time = rospy.Time.now()
 
@@ -200,11 +204,12 @@ class Robot_Node:
         # print("emergency_cause: ", self.emergency_cause)
         # print("prev_emergency_cause: ", self.prev_emergency_cause)
         if self.emergency_cause != self.prev_emergency_cause:
-            
-            self.robot_state = self.old_robot_state if self.emergency_cause == "" else "EMERGENCY"
-
+            # todo in case of no emergency make it STAND_BY
+            self.robot_state = self.old_robot_state if self.emergency_cause == self.emergency_cause_ok else "EMERGENCY"
             self.prev_emergency_cause = deepcopy(self.emergency_cause)
-            self._emetgency_cause_pub.publish(self.emergency_cause)
+            
+            if self.emergency_cause != self.emergency_cause_ok:
+                self._emetgency_cause_pub.publish(self.emergency_cause)
             # print("emergency_cause: ", self.emergency_cause)
 
     def publish_robot_state(self):
