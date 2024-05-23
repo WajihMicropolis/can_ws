@@ -140,6 +140,7 @@ STATUS_TypeDef CANBus::ParserCANMessage(uint16_t ID, unsigned char *RxData)
 	case MRCU_DOOR_AND_LIFTER_STATUS:
 		Vehicle.Door_Lifter.DoorStatus = (STATUS_DoorAnsLifter) RxData[0];
 		Vehicle.Door_Lifter.LifterStatus = (STATUS_DoorAnsLifter) RxData[1];
+		Vehicle.Door_Lifter.DroneBaseStatus = (STATUS_DoorAnsLifter) RxData[2];
 		break;
 	case MRCU_STATE_OF_CHARGE:
 		Vehicle.PDU.BatteryStateOfCharge.BatteryVoltage = float_decode(CAST(RxData[0]));

@@ -118,7 +118,7 @@ private:
 
    CANBus *canBus;
    // CANMessage cMessage;
-   string doorStateStr[4] = {"opened", "closed", "opening", "closing"};
+   string doorStateStr[6] = {"opened", "closed", "opening", "closing","stopped","error"};
    
 
    CANUSB_SPEED canusb_int_to_speed(int speed);
@@ -156,6 +156,8 @@ public:
       Float32 robot_speed;
 
       String door_state;
+      String lifter_state;
+      String drone_base_state;
       String steering_status;
       String braking_status;
       String driving_mode;

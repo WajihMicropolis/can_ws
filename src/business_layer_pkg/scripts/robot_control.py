@@ -26,7 +26,7 @@ class Robot_Control:
         self.robot_speed = 0
         self.robot_steering_angle = 0
 
-        self.steer_change_time = 0.05
+        self.steer_change_time = 0.06
 
         self.speed_step = 0.5
         self.robot_max_forward_speed = self.speed_step * self.gear +0.1
@@ -41,9 +41,7 @@ class Robot_Control:
         self.robot_min_steering_angle = (
             -16.0 if not self.steering_angle_as_rad else -0.3
         )
-        self.robot_steering_angle_change_rate = (
-            1.0 if not self.steering_angle_as_rad else 0.05
-        )
+        self.robot_steering_angle_change_rate = (1.0 if not self.steering_angle_as_rad else 0.05)
         self.steering_goal = 0
 
 

@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
           ParserCANMessage(CAN_ID, &RecivedData[4]);
           // fprintf(stdout, "counter: %d\n", );
 
-          fprintf(stdout, "Vehicle.WheelFrontRight.Car_Steering.Wheel_Steering_Angle=%.2f\n",
-                  Vehicle.WheelFrontRight.Steering.SteeringAngle);
+          // fprintf(stdout, "Vehicle.WheelFrontRight.Car_Steering.Wheel_Steering_Angle=%.2f\n",
+          //         Vehicle.WheelFrontRight.Steering.SteeringAngle);
           // fprintf(stdout, "Vehicle.WheelFrontLeft.Car_Steering.Wheel_Steering_Angle=%.2f\n",
           //         Vehicle.WheelFrontLeft.Steering.SteeringAngle);
           // fprintf(stdout, "Vehicle.WheelRearRight.Car_Steering.Wheel_Steering_Angle=%.2f\n",
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
           // Vehicle.UltraSonicSensors.FrontLeft
           // Vehicle.DesiredCarParameters.DesiredBrake
 
-          fprintf(stdout, "-------------------------------------------------\n");
+          // fprintf(stdout, "-------------------------------------------------\n");
         }
       }
     }

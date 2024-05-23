@@ -33,6 +33,8 @@ private:
         _imu_pub,
         _rpy_pub,
         _door_state_pub,
+        _lifter_state_pub,
+        _drone_base_state_pub,
         _steering_state_pub,
         _brake_state_pub,
         _steering_health_check_pub,
@@ -65,6 +67,8 @@ private:
     std_msgs::String _steering_state_msg,
         _brake_state_msg,
         _door_state_msg,
+        _lifter_state_msg,
+        _drone_base_state_msg,
         _drive_mode_msg;
 
     std_msgs::Bool _steering_health_check_msg,

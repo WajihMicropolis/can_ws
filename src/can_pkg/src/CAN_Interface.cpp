@@ -674,7 +674,12 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             feedback.ultrasonic.data.push_back(Vehicle.UltraSonicSensors.RearLeft * 2);
             feedback.ultrasonic.data.push_back(Vehicle.UltraSonicSensors.Right * 2);
             feedback.ultrasonic.data.push_back(Vehicle.UltraSonicSensors.Left * 2);
-
+            printf("Vehicle.UltraSonicSensors.FrontRight: %d\n", Vehicle.UltraSonicSensors.FrontRight);
+            printf("Vehicle.UltraSonicSensors.FrontLeft: %d\n", Vehicle.UltraSonicSensors.FrontLeft);
+            printf("Vehicle.UltraSonicSensors.RearRight: %d\n", Vehicle.UltraSonicSensors.RearRight);
+            printf("Vehicle.UltraSonicSensors.RearLeft: %d\n", Vehicle.UltraSonicSensors.RearLeft);
+            printf("Vehicle.UltraSonicSensors.Right: %d\n", Vehicle.UltraSonicSensors.Right);
+            printf("Vehicle.UltraSonicSensors.Left: %d\n", Vehicle.UltraSonicSensors.Left);
             feedback.battery_state.voltage = Vehicle.PDU.BatteryStateOfCharge.BatteryVoltage;
             feedback.battery_state.current = Vehicle.PDU.BatteryStateOfCharge.BatteryCurrent;
             feedback.battery_state.percentage = Vehicle.PDU.BatteryStateOfCharge.BatteryChargePercentage;
@@ -703,8 +708,14 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
 
             feedback.robot_speed.data = getRobotSpeed(feedback.motors_speed);
 
-            cout<<"Vehicle.Door_Lifter.DoorStatus" << Vehicle.Door_Lifter.DoorStatus << endl;
+            // cout<<"Vehicle.Door_Lifter.DoorStatus" << Vehicle.Door_Lifter.DoorStatus << endl;
+            printf("Vehicle.Door_Lifter.DoorStatus: %d\n", Vehicle.Door_Lifter.DoorStatus);
+            printf("Vehicle.Door_Lifter.LifterStatus: %d\n", Vehicle.Door_Lifter.LifterStatus);
+            printf("Vehicle.Door_Lifter.DroneBaseStatus: %d\n", Vehicle.Door_Lifter.DroneBaseStatus);
+    
             feedback.door_state.data = doorStateStr[Vehicle.Door_Lifter.DoorStatus];
+            feedback.lifter_state.data = doorStateStr[Vehicle.Door_Lifter.LifterStatus];
+            feedback.drone_base_state.data = doorStateStr[Vehicle.Door_Lifter.DroneBaseStatus];
 
             _steering_braking_status = steeringBrakingStatus();
             feedback.steering_status.data = _steering_braking_status.first;

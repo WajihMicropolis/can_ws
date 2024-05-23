@@ -128,6 +128,14 @@ STATUS_TypeDef ParserCANMessage(uint16_t ID, unsigned char *RxData)
 		Vehicle.UltraSonicSensors.RearLeft = RxData[3];
 		Vehicle.UltraSonicSensors.Right = RxData[4];
 		Vehicle.UltraSonicSensors.Left = RxData[5];
+		printf("Vehicle.UltraSonicSensors.FrontRight: %d\n", Vehicle.UltraSonicSensors.FrontRight);
+        printf("Vehicle.UltraSonicSensors.FrontLeft: %d\n", Vehicle.UltraSonicSensors.FrontLeft);
+        printf("Vehicle.UltraSonicSensors.RearRight: %d\n", Vehicle.UltraSonicSensors.RearRight);
+        printf("Vehicle.UltraSonicSensors.RearLeft: %d\n", Vehicle.UltraSonicSensors.RearLeft);
+        printf("Vehicle.UltraSonicSensors.Right: %d\n", Vehicle.UltraSonicSensors.Right);
+        printf("Vehicle.UltraSonicSensors.Left: %d\n", Vehicle.UltraSonicSensors.Left);
+          fprintf(stdout, "-------------------------------------------------\n");
+
 		break;
 	case MRCU_STATE_OF_CHARGE:
 		Vehicle.PDU.BatteryStateOfCharge.BatteryVoltage = float_decode(CAST(RxData[0]));

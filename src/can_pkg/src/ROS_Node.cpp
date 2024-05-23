@@ -32,25 +32,28 @@ ROS_Node::ROS_Node(/* args */)
                                                                   });
    this->_robot_state_sub = this->_nh->subscribe<std_msgs::String>("robot/state", 1, &ROS_Node::robotStateCallback, this);
 
+   this->_door_control = 1;
    bool _latch = true;
    uint8_t _queue_size = 1;
 
-   this->_motorsSpeed_pub        = this->_nh->advertise<std_msgs::Int16MultiArray>("feedback/motors_speed", _latch, _latch);
-   this->_steering_angle_pub     = this->_nh->advertise<std_msgs::Int16MultiArray>("feedback/steering_angle", _latch, _latch);
-   this->_brake_percentage_pub   = this->_nh->advertise<std_msgs::Int16MultiArray>("feedback/brake_percentage", _latch, _latch);
-   this->_ultrasonic_pub         = this->_nh->advertise<std_msgs::Int16MultiArray>("feedback/ultrasonic", _latch, _latch);
-   this->_rpy_pub                = this->_nh->advertise<std_msgs::Float32MultiArray>("feedback/rpy", _latch, _latch);
+   this->_motorsSpeed_pub        = this->_nh->advertise<std_msgs::Int16MultiArray>("feedback/motors_speed", _queue_size, _latch);
+   this->_steering_angle_pub     = this->_nh->advertise<std_msgs::Int16MultiArray>("feedback/steering_angle", _queue_size, _latch);
+   this->_brake_percentage_pub   = this->_nh->advertise<std_msgs::Int16MultiArray>("feedback/brake_percentage", _queue_size, _latch);
+   this->_ultrasonic_pub         = this->_nh->advertise<std_msgs::Int16MultiArray>("feedback/ultrasonic", _queue_size, _latch);
+   this->_rpy_pub                = this->_nh->advertise<std_msgs::Float32MultiArray>("feedback/rpy", _queue_size, _latch);
 
-   this->_battery_pub         = this->_nh->advertise<sensor_msgs::BatteryState>  ("feedback/battery", _latch, _latch);
-   this->_imu_pub             = this->_nh->advertise<sensor_msgs::Imu>           ("feedback/imu", _latch, _latch);
-   this->_robot_speed_pub     = this->_nh->advertise<std_msgs::Float32>          ("feedback/robot_speed", _latch, _latch);
-   this->_door_state_pub      = this->_nh->advertise<std_msgs::String>           ("feedback/door_state", _latch, _latch);
-   this->_steering_state_pub  = this->_nh->advertise<std_msgs::String>           ("feedback/steering_state", _latch, _latch);
-   this->_brake_state_pub     = this->_nh->advertise<std_msgs::String>           ("feedback/brake_state", _latch, _latch);
-   // this->_drive_mode_pub      = this->_nh->advertise<std_msgs::String>           ("feedback/driving_mode", _latch, _latch);
+   this->_battery_pub            = this->_nh->advertise<sensor_msgs::BatteryState>  ("feedback/battery", _queue_size, _latch);
+   this->_imu_pub                = this->_nh->advertise<sensor_msgs::Imu>           ("feedback/imu", _queue_size, _latch);
+   this->_robot_speed_pub        = this->_nh->advertise<std_msgs::Float32>          ("feedback/robot_speed", _queue_size, _latch);
+   this->_door_state_pub         = this->_nh->advertise<std_msgs::String>           ("feedback/door_state", _queue_size, _latch);
+   this->_lifter_state_pub       = this->_nh->advertise<std_msgs::String>           ("feedback/lifter_state", _queue_size, _latch);
+   this->_drone_base_state_pub   = this->_nh->advertise<std_msgs::String>           ("feedback/drone_base_state", _queue_size, _latch);
+   this->_steering_state_pub     = this->_nh->advertise<std_msgs::String>           ("feedback/steering_state", _queue_size, _latch);
+   this->_brake_state_pub        = this->_nh->advertise<std_msgs::String>           ("feedback/brake_state", _queue_size, _latch);
+   // this->_drive_mode_pub      = this->_nh->advertise<std_msgs::String>           ("feedback/driving_mode", _queue_size, _latch);
 
-   this->_steering_health_check_pub = this->_nh->advertise<std_msgs::Bool>("feedback/steering_health_check", _latch, _latch);
-   this->_braking_health_check_pub  = this->_nh->advertise<std_msgs::Bool>("feedback/braking_health_check", _latch, _latch);
+   this->_steering_health_check_pub = this->_nh->advertise<std_msgs::Bool>("feedback/steering_health_check", _queue_size, _latch);
+   this->_braking_health_check_pub  = this->_nh->advertise<std_msgs::Bool>("feedback/braking_health_check", _queue_size, _latch);
 
    this->_can_feedback.motors_speed.data.resize(4);
    this->_can_feedback.steering_angle.data.resize(4);
@@ -124,7 +127,8 @@ void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
 
    _steering_state_msg = feedback.steering_status;
    _door_state_msg = feedback.door_state;
-   // cout<<"door state: "<<_door_state_msg<<endl;
+   _lifter_state_msg = feedback.lifter_state;
+   _drone_base_state_msg = feedback.drone_base_state;
    _brake_state_msg = feedback.braking_status;
    // _drive_mode_msg = feedback.driving_mode;
 
@@ -141,9 +145,16 @@ void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
    _battery_pub.publish(_battery_state_msg);
    _robot_speed_pub.publish(_robot_speed_msg);
 
-   _steering_state_pub.publish(_steering_state_msg);
-   _brake_state_pub.publish(_brake_state_msg);
-   _door_state_pub.publish(_door_state_msg);
+   if (_steering_state_msg.data != "")
+      _steering_state_pub  .publish(_steering_state_msg);
+   if (_brake_state_msg.data != "")
+      _brake_state_pub     .publish(_brake_state_msg);
+   if (_door_state_msg.data !="")
+      _door_state_pub      .publish(_door_state_msg);
+   if (_lifter_state_msg.data != "")
+      _lifter_state_pub    .publish(_lifter_state_msg);
+   if (_drone_base_state_msg.data != "")
+      _drone_base_state_pub.publish(_drone_base_state_msg);
    // _drive_mode_pub.publish(_drive_mode_msg);
 
    _steering_health_check_pub.publish(_steering_health_check_msg);

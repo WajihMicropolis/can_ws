@@ -18,7 +18,7 @@
 #define CANUSB_INJECT_SLEEP_GAP_DEFAULT 200 /* ms */
 #define CANUSB_TTY_BAUD_RATE_DEFAULT 2000000
 
-char USB_PORT[] = "/dev/ttyUSB3";
+char USB_PORT[] = "/dev/ttyUSB0";
 #define CAN_BUS_SPEED 1000000
 char CAN_IDENTIFER[3] = "5";
 int c, tty_fd;

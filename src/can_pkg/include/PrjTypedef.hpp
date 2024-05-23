@@ -13,10 +13,10 @@
 
 typedef enum
 {
-  STATUS_OK       = 0x00U,
-  STATUS_ERROR    = 0x01U,
-  STATUS_BUSY     = 0x02U,
-  STATUS_TIMEOUT  = 0x03U
+	STATUS_OK = 0x00U,
+	STATUS_ERROR = 0x01U,
+	STATUS_BUSY = 0x02U,
+	STATUS_TIMEOUT = 0x03U
 } STATUS_TypeDef;
 
 /*
@@ -25,11 +25,11 @@ typedef enum
   Wheel Rear Left    = 0x02
   Wheel Rear Right   = 0x03
 */
-// 
+//
 // Orin ID: 0x02
-#define BOARDNUMBER 0x02 
+#define BOARDNUMBER 0x02
 
-typedef  enum
+typedef enum
 {
 	Disable = 0,
 	Front_ackerman,
@@ -39,17 +39,16 @@ typedef  enum
 	Double_parallel,
 	Goto_home,
 	Calibration,
-}SteeringModeEnum;
+} SteeringModeEnum;
 
 typedef struct
 {
 	float DrivingVelocity;
 	uint16_t DrivingVelocitySampleTime;
 
-	float   DrivingTorque;
+	float DrivingTorque;
 	uint16_t DrivingTorqueSampleTime;
 } WheelDrivingParameter;
-
 
 typedef struct
 {
@@ -61,7 +60,6 @@ typedef struct
 	bool MotorConnectionLoss;
 } WheelSteeringStatus;
 
-
 typedef struct
 {
 	bool MotorOverTemperature;
@@ -70,8 +68,9 @@ typedef struct
 	bool MotorConnectionLoss;
 } WheelBrakingStatus;
 
-typedef struct {
-    uint16_t value : 10;  // 10-bit wide bit field
+typedef struct
+{
+	uint16_t value : 10; // 10-bit wide bit field
 } Limitswitches;
 
 typedef struct
@@ -100,15 +99,15 @@ typedef struct
 } BrakingSystemStatus;
 typedef struct
 {
-	float 				  SteeringAngle;
-	uint16_t 			  SteeringAngleSampleTime;
+	float SteeringAngle;
+	uint16_t SteeringAngleSampleTime;
 
-	float 				  SteeringAngularVelocity;
-	uint16_t 			  SteeringAngularVelocitySampleTime;
+	float SteeringAngularVelocity;
+	uint16_t SteeringAngularVelocitySampleTime;
 
-	SteeringModeEnum 		  SteeringMode;
+	SteeringModeEnum SteeringMode;
 
-	WheelSteeringStatus   WheelSteeringState;
+	WheelSteeringStatus WheelSteeringState;
 
 } WheelSteeringParameter;
 
@@ -116,7 +115,7 @@ typedef struct
 {
 	float BrakeTorque;
 	uint16_t BrakeTorqueSampleTime;
-	uint8_t  BrakeValue;
+	uint8_t BrakeValue;
 	float BrakeCurrent;
 	float BrakeTemperature;
 	WheelBrakingStatus BrakingStatus;
@@ -131,8 +130,7 @@ typedef struct
 	bool Discharge_Over_Current;
 	bool Charge_Over_Current;
 	bool System_Error;
-}Battery_Protection_Data;
-
+} Battery_Protection_Data;
 
 typedef struct
 {
@@ -152,43 +150,42 @@ typedef struct
 
 typedef struct
 {
-	WheelDrivingParameter   Driving;
-	WheelSteeringParameter  Steering;
-	WheelBrakeParameter 	Braking;
+	WheelDrivingParameter Driving;
+	WheelSteeringParameter Steering;
+	WheelBrakeParameter Braking;
 } Wheel;
 
 typedef struct
 {
-float Acceleration_Without_gX;
-float Acceleration_Without_gY;
-float Acceleration_Without_gZ;
-float Acceleration_X;
-float Acceleration_Y;
-float Acceleration_Z;
+	float Acceleration_Without_gX;
+	float Acceleration_Without_gY;
+	float Acceleration_Without_gZ;
+	float Acceleration_X;
+	float Acceleration_Y;
+	float Acceleration_Z;
 } AccelerationEnum;
 
 typedef struct
 {
-float Velocity_X;
-float Velocity_Y;
-float Velocity_Z;
-float Velocity_abs;
+	float Velocity_X;
+	float Velocity_Y;
+	float Velocity_Z;
+	float Velocity_abs;
 } VelocityEnum;
 
 typedef struct
 {
-float AngularVelocity_Roll;
-float AngularVelocity_Pitch;
-float AngularVelocity_Yaw;
+	float AngularVelocity_Roll;
+	float AngularVelocity_Pitch;
+	float AngularVelocity_Yaw;
 } AngularVelocityEnum;
 
 typedef struct
 {
-float Angle_Roll;
-float Angle_Pitch;
-float Angle_Yaw;
+	float Angle_Roll;
+	float Angle_Pitch;
+	float Angle_Yaw;
 } AngleEnum;
-
 
 typedef struct
 {
@@ -216,12 +213,12 @@ typedef struct
 typedef struct
 {
 	uint8_t FrontRight;
-//	uint8_t FrontMiddleRight;
-//	uint8_t FrontMiddleLeft;
+	//	uint8_t FrontMiddleRight;
+	//	uint8_t FrontMiddleLeft;
 	uint8_t FrontLeft;
 	uint8_t RearRight;
-//	uint8_t RearMiddleRight;
-//	uint8_t RearMiddleLeft;
+	//	uint8_t RearMiddleRight;
+	//	uint8_t RearMiddleLeft;
 	uint8_t RearLeft;
 	uint8_t Left;
 	uint8_t Right;
@@ -243,7 +240,9 @@ typedef enum
 	STATUS_Opened = 0x00U,
 	STATUS_Closed = 0x01U,
 	STATUS_Opening = 0x02U,
-	STATUS_Closing = 0x03U
+	STATUS_Closing = 0x03U,
+	STATUS_STOPPED = 0x04U,
+	STATUS_DOOR_ERROR = 0x05U
 } STATUS_DoorAnsLifter;
 
 typedef struct
@@ -252,13 +251,14 @@ typedef struct
 	bool LifterCommand;
 	STATUS_DoorAnsLifter DoorStatus;
 	STATUS_DoorAnsLifter LifterStatus;
+	STATUS_DoorAnsLifter DroneBaseStatus;
 } DoorAndLifter;
 
 typedef struct
 {
 	IMUValues IMUSensor;
 	SteeringCommands SteeringCommand;
-	BrakeCommands  BrakeCommand;
+	BrakeCommands BrakeCommand;
 	UltraSonic UltraSonicSensors;
 	Wheel WheelFrontRight;
 	Wheel WheelFrontLeft;
@@ -267,12 +267,11 @@ typedef struct
 	VehiclePDU PDU;
 	DesiredDrivingParameters DesiredCarParameters;
 	bool AutonomousMode;
-	BrakingSystemStatus   BrakingSystemState;
-	SteeringSystemStatus  SteeringSystemState;
+	BrakingSystemStatus BrakingSystemState;
+	SteeringSystemStatus SteeringSystemState;
 	DoorAndLifter Door_Lifter;
 
 } Vehicle_Status;
-
 
 extern Vehicle_Status Vehicle;
 
@@ -281,6 +280,5 @@ typedef struct
 	float DesiredVelocity;
 	float DesiredAcceleration;
 } DrivingCommand;
-
 
 #endif /* INC_PRJTYPEDEF_H_ */
