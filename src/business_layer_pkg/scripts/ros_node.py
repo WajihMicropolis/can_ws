@@ -42,6 +42,10 @@ class Robot_Node:
         self._health_check_pub              = rospy.Publisher("health_check", String, queue_size=1, latch=True)
         self._emetgency_cause_pub           = rospy.Publisher("emergency_cause", String, queue_size=1, latch=True)
         self._robot_operational_details_pub = rospy.Publisher("robot_operational_details", String, queue_size=1, latch=True)
+        #! subscribers from the Teleoperation software
+        self.gear_sub           = rospy.Subscriber("gear", String, self.gear_cb)
+        self.wasdb_sub          = rospy.Subscriber("wasdb", String, self.wasdb_cb)
+        self.door_control_sub   = rospy.Subscriber("door_control", String, self.door_control_cb)
         
         #! publishers to the Robot
         self.tele_operator_pub      = rospy.Publisher("cmd_vel", Twist, queue_size=1, latch=True)
@@ -49,22 +53,23 @@ class Robot_Node:
         self.steering_pub           = rospy.Publisher("robot/steering",Float32,queue_size=1,latch=True)
         self.emergency_brake_pub    = rospy.Publisher("robot/emergency_brake",Bool,queue_size=1,latch=True)
         self.robot_door_control_pub = rospy.Publisher("robot/door_control",Int8,queue_size=1,latch=True)
-
-        #! subscribers from the Teleoperation software
-        self.gear_sub           = rospy.Subscriber("gear", String, self.gear_cb)
-        self.wasdb_sub          = rospy.Subscriber("wasdb", String, self.wasdb_cb)
-        self.door_control_sub   = rospy.Subscriber("door_control", String, self.door_control_cb)
+        #! subscribers from auto-pilot
+        self.auto_pilot_sub = rospy.Subscriber("autonomous_cmd_vel", Twist, self.autonomous_cmd_vel_cb)
 
         # services
         self._health_check_srv = rospy.Service("health_check_srv", health_check, self.health_check_srv)
 
-        self.teleoperator_command = Twist()
+        self.teleoperator_command   = Twist()
+        self.auto_pilot_command     = Twist()
+        self.robot_command          = Twist()
         
-        self.robot_velocity_rpm         = Float32()
-        self.robot_steering             = Float32()
-        self.robot_emergency_brake      = Bool()
-        self.robot_operational_details  = String()
+        self.robot_velocity_rpm             = Float32()
+        self.robot_steering                 = Float32()
+        self.robot_emergency_brake          = Bool()
+        self.robot_operational_details      = String()
         self.prev_robot_operational_details = String()
+        self.door_control                   = Int8()
+        self.prev_door_control              = Int8()
 
         self.robot_state = "KEY_OFF"
         self.prev_robot_state = ""
@@ -77,7 +82,6 @@ class Robot_Node:
 
         self._modeToBeChecked = []
         self.gear = 1
-        self.door_control = "closed"
 
         self.ip = "10.20.0.30"
         self.Robot_Control = Robot_Control()
@@ -132,10 +136,15 @@ class Robot_Node:
         print("mode to be checked: ", self._modeToBeChecked)
         return health_checkResponse(checks=self._modeToBeChecked)
 
+    def autonomous_cmd_vel_cb(self, msg: Twist):
+        self.auto_pilot_command = msg
+        
     def door_control_cb(self, msg: String):
         _door_control = json.loads(msg.data)
-        self.door_control = _door_control["state"]
-        print("door_control: ", self.door_control)
+        _door_control = _door_control["state"]
+        self.door_control.data = 0 if _door_control == "open" else 2
+         
+        print("door_control: ", _door_control)
 
     def gear_cb(self, msg: String):
 
@@ -229,10 +238,15 @@ class Robot_Node:
 
     def publish_teleop(self):
         self.Robot_Control.teleop_control(self.teleoperator_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
-        self.tele_operator_pub.publish(self.teleoperator_command)
-        self.velocity_pub.publish(self.robot_velocity_rpm)
-        self.steering_pub.publish(self.robot_steering)
-        self.emergency_brake_pub.publish(self.robot_emergency_brake)
+        
+        
+        self.tele_operator_pub.     publish(self.teleoperator_command)
+        self.velocity_pub.          publish(self.robot_velocity_rpm)
+        self.steering_pub.          publish(self.robot_steering)
+        self.emergency_brake_pub.   publish(self.robot_emergency_brake)
+        if self.door_control.data != self.prev_door_control:
+            self.prev_door_control = deepcopy(self.door_control.data)
+            self.robot_door_control_pub.publish(self.door_control)
         
     def publish_robot_operational_details(self):
         self.elapsed_time = self.update_elapsed_time()

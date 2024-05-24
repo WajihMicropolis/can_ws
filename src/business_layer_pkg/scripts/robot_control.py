@@ -2,7 +2,7 @@
 
 import rospy
 import json
-from std_msgs.msg import Float32, Int16MultiArray, Bool
+from std_msgs.msg import Float32, Int8, Bool
 from geometry_msgs.msg import Twist
 from robot_feedback import *
 
@@ -17,6 +17,7 @@ class Robot_Control:
         self.robot_velocity_rpm     = Float32()
         self.robot_steering         = Float32()
         self.robot_emergency_brake  = Bool()
+        self.robot_door_control     = Int8()
 
         self.gear = 1
         self.drive_data = {"w": 0, "a": 0, "s": 0, "d": 0, "b": 0}
@@ -27,7 +28,7 @@ class Robot_Control:
 
         self.speed_step = 0.5
         self.robot_max_forward_speed = self.speed_step * self.gear +0.1
-        self.robot_max_reverse_speed = -0.50
+        self.robot_max_reverse_speed = -1.0
         self.speed_goal = 0
 
         self.brake = True
@@ -123,6 +124,10 @@ class Robot_Control:
 
         self.robot_steering_angle = round(self.robot_steering_angle, 2)
 
+    def priority_control(self, auto_pilot_command = Twist(), teleoperator_command = Twist(), robot_command = Twist()):
+        
+        pass
+    
     def teleop_control(self, teleoperator_command = Twist(),velocity_rpm = Float32(),steering = Float32(),emergency_brake = Bool()):
         self.update_speed()
         self.update_steering()

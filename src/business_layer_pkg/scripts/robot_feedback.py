@@ -75,10 +75,10 @@ class RobotFeedback:
 
 
     def motors_speed_cb(self, msg: Int16MultiArray):
-        data['motors_details']['fr']['rpm'] = msg.data[0]
-        data['motors_details']['fl']['rpm'] = msg.data[1]
-        data['motors_details']['br']['rpm'] = msg.data[2]
-        data['motors_details']['bl']['rpm'] = msg.data[3]
+        data['motors_details']['fr']['rpm'] = abs(msg.data[0])
+        data['motors_details']['fl']['rpm'] = abs(msg.data[1])
+        data['motors_details']['br']['rpm'] = abs(msg.data[2])
+        data['motors_details']['bl']['rpm'] = abs(msg.data[3])
 
     def steering_angle_cb(self, msg: Int16MultiArray):
         data['motors_details']['fr']['steering'] = msg.data[0]
@@ -87,20 +87,27 @@ class RobotFeedback:
         data['motors_details']['bl']['steering'] = msg.data[3]
 
     def brake_percentage_cb(self, msg: Int16MultiArray):
-        data['motors_details']['fr']['brake'] = msg.data[0]
-        data['motors_details']['fl']['brake'] = msg.data[1]
-        data['motors_details']['br']['brake'] = msg.data[2]
-        data['motors_details']['bl']['brake'] = msg.data[3]
+        data['motors_details']['fr']['brake'] = msg.data[0] * 10
+        data['motors_details']['fl']['brake'] = msg.data[1] * 10
+        data['motors_details']['br']['brake'] = msg.data[2] * 10
+        data['motors_details']['bl']['brake'] = msg.data[3] * 10
 
     def ultrasonic_cb(self, msg: Int16MultiArray):
         
         #convert the ultrasonic data to binary
-        self.ultrasonic['front_right']  = 1 if msg.data[0] < self.ultrasonic_threshold and msg.data[0] > 0 else 0
-        self.ultrasonic['front_left']   = 1 if msg.data[1] < self.ultrasonic_threshold and msg.data[1] > 0 else 0
-        self.ultrasonic['back_right']   = 1 if msg.data[2] < self.ultrasonic_threshold and msg.data[2] > 0 else 0
-        self.ultrasonic['back_left']    = 1 if msg.data[3] < self.ultrasonic_threshold and msg.data[3] > 0 else 0
-        self.ultrasonic['right']        = 1 if msg.data[4] < self.ultrasonic_threshold and msg.data[4] > 0 else 0
-        self.ultrasonic['left']         = 1 if msg.data[5] < self.ultrasonic_threshold and msg.data[5] > 0 else 0
+        self.ultrasonic['front_right']  = 1 if msg.data[0] < self.ultrasonic_threshold and msg.data[0] > 40 else 0
+        self.ultrasonic['front_left']   = 1 if msg.data[1] < self.ultrasonic_threshold and msg.data[1] > 40 else 0
+        self.ultrasonic['back_right']   = 1 if msg.data[2] < self.ultrasonic_threshold and msg.data[2] > 40 else 0
+        self.ultrasonic['back_left']    = 1 if msg.data[3] < self.ultrasonic_threshold and msg.data[3] > 40 else 0
+        self.ultrasonic['right']        = 1 if msg.data[4] < self.ultrasonic_threshold and msg.data[4] > 40 else 0
+        self.ultrasonic['left']         = 1 if msg.data[5] < self.ultrasonic_threshold and msg.data[5] > 40 else 0
+        # print("ultrasonic: ", self.ultrasonic['front_right'])
+        # print("condition['front_right']: ", self.ultrasonic['front_right'])
+        # print("condition['front_left']: ", self.ultrasonic['front_left'])
+        # print("condition['back_right']: ", self.ultrasonic['back_right'])
+        # print("condition['back_left']: ", self.ultrasonic['back_left'])
+        # print("condition['right']: ", self.ultrasonic['right'])
+        # print("condition['left']: ", self.ultrasonic['left'])
         
         data['surroundings']['front_center']    = self.ultrasonic['front_right'] or self.ultrasonic['front_left']
         data['surroundings']['front_right']     = self.ultrasonic['front_right'] or self.ultrasonic['right']
@@ -134,7 +141,8 @@ class RobotFeedback:
 
     def robot_speed_cb(self, msg:Float32):
         self.robot_speed_feedback = msg.data
-        speed_kmh = (self.robot_speed_feedback * 2 * PI * wheel_radius * 60) / 1000
+        # convert the speed from rpm to km/h
+        speed_kmh = abs(self.robot_speed_feedback * 2 * PI * wheel_radius * 60) / 1000
         data['speed'] = int (speed_kmh)
 
     def door_state_cb(self, msg:String):
@@ -183,9 +191,6 @@ class RobotFeedback:
         self.emergency_causes["brake"]['back right']   = split_data[2]
         self.emergency_causes["brake"]['back left']    = split_data[3]
         self.checkErrorState()
-
-    def driving_mode_cb(self, msg:String):
-        data['drivingMode'] = msg.data
 
     def updateDriveMode(self, robot_velocity):
         self.robot_velocity = robot_velocity

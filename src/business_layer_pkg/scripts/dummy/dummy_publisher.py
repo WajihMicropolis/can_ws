@@ -5,7 +5,7 @@ from random import randint
 import rospy
 import json
 from std_msgs.msg import String
-from std_msgs.msg import Int8
+from std_msgs.msg import Int8, Int16MultiArray
 
 drive_data = {"wasdb": {"w": 0, "a": 0, "s": 0, "d": 0, "b": 0}}  # 0  # 0  # 0  # 0
 prev_drive_data = deepcopy(drive_data)
@@ -60,6 +60,7 @@ def publisher_node():
     gear_pub = rospy.Publisher("gear", String, queue_size=1)
     wasdb_pub = rospy.Publisher("wasdb", String, queue_size=1)
     door_control_pub = rospy.Publisher("door_control", String, queue_size=1)
+    us = rospy.Publisher("feedback/ultrasonic", Int16MultiArray, queue_size=1)
     
     # Set the rate of publishing
     rate = rospy.Rate(1)  # 1 Hz
@@ -69,6 +70,7 @@ def publisher_node():
     global drive_data, prev_drive_data
     global gear_data, prev_gear
     global door_data, prev_door
+    us_data = Int16MultiArray()
     while not rospy.is_shutdown():
         # Convert the JSON object to a string
         wasdb_json_string = json.dumps(drive_data)
@@ -88,6 +90,8 @@ def publisher_node():
         door_data = {
             "state": "open" if randint(0, 1) else "closed"
         }
+        us_data.data = [0,10,20,30,40,50]
+        us.publish(us_data)
         
         if prev_door != door_data:
             door_control_pub.publish(json.dumps(door_data))
