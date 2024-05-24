@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from copy import deepcopy
+from random import randint
 import rospy
 import json
 from std_msgs.msg import String
@@ -14,6 +15,10 @@ gear_data = {
 }
 prev_gear = deepcopy(gear_data)
 
+door_data = {
+    "state": "closed",
+}
+prev_door = deepcopy(door_data)
 
 def dir_cb(msg: String):
     global drive_data, prev_drive_data
@@ -54,13 +59,16 @@ def publisher_node():
     # Create a publisher object that will publish on the 'json_data' topic
     gear_pub = rospy.Publisher("gear", String, queue_size=1)
     wasdb_pub = rospy.Publisher("wasdb", String, queue_size=1)
+    door_control_pub = rospy.Publisher("door_control", String, queue_size=1)
+    
     # Set the rate of publishing
-    rate = rospy.Rate(10)  # 1 Hz
+    rate = rospy.Rate(1)  # 1 Hz
 
     # Define the JSON object to be sent
 
     global drive_data, prev_drive_data
     global gear_data, prev_gear
+    global door_data, prev_door
     while not rospy.is_shutdown():
         # Convert the JSON object to a string
         wasdb_json_string = json.dumps(drive_data)
@@ -76,7 +84,14 @@ def publisher_node():
         if prev_gear != gear_data:
             gear_pub.publish(gear_json_string)
             prev_gear = deepcopy(gear_data)
-
+        
+        door_data = {
+            "state": "open" if randint(0, 1) else "closed"
+        }
+        
+        if prev_door != door_data:
+            door_control_pub.publish(json.dumps(door_data))
+            prev_door = deepcopy(door_data)
         # Sleep to maintain the publishing rate
         rate.sleep()
 

@@ -2,11 +2,8 @@
 
 import rospy
 import json
-from std_msgs.msg import String
 from std_msgs.msg import Float32, Int16MultiArray, Bool
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import BatteryState, Imu
-# from .dummy import data
 from robot_feedback import *
 
 

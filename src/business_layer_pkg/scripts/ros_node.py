@@ -77,6 +77,7 @@ class Robot_Node:
 
         self._modeToBeChecked = []
         self.gear = 1
+        self.door_control = "closed"
 
         self.ip = "10.20.0.30"
         self.Robot_Control = Robot_Control()
@@ -132,8 +133,9 @@ class Robot_Node:
         return health_checkResponse(checks=self._modeToBeChecked)
 
     def door_control_cb(self, msg: String):
-        door_control = json.loads(msg.data)
-        print("door_control: ", door_control)
+        _door_control = json.loads(msg.data)
+        self.door_control = _door_control["state"]
+        print("door_control: ", self.door_control)
 
     def gear_cb(self, msg: String):
 
