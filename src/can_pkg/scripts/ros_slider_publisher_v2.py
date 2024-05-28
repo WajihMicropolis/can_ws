@@ -12,8 +12,8 @@ class ros_slider:
     def __init__(self):
         
         rospy.init_node('slider_pub', anonymous=True)
-        self.velocity_pub = rospy.Publisher('velocity',Float32,queue_size=1)
-        self.steering_pub = rospy.Publisher('steering_rad',Float32,queue_size=1)
+        self.velocity_pub = rospy.Publisher('/robot/velocity',Float32,queue_size=1)
+        self.steering_pub = rospy.Publisher('/robot/steering_rad',Float32,queue_size=1)
         self.speed_sub = rospy.Subscriber('speed_fb',Float32,self.speed_callback)
         
         self.drive_speed = Float32()
