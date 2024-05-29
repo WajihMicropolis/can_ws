@@ -441,7 +441,6 @@ class Ui_Dialog(object):
             self.BL_break_label.setText(str(self.brake_percentage.data[3])+"%")
             
         if self.steer_error:
-            print(self.steer_error)
             self.FR_steering_error_label.setText(str(self.steer_error[0]))
             self.FL_steering_error_label.setText(str(self.steer_error[1]))
             self.BR_steering_error_label.setText(str(self.steer_error[2]))

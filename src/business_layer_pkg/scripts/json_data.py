@@ -2,12 +2,12 @@
 
 data = {
     "lightning": {
-        "siren" :  1, # 0
+        "siren" :  0, # 0
         "headlights" : 0, # 0
-        "left" :  0, # 0
-        "right" : 1 # 0
+        "left" :  0, # 0 #?done
+        "right" : 0 # 0 #?done
     },
-    "surroundings": {
+    "surroundings": { #?done
         "front_center" :0, # 1
         "back_center" :  0, # 1
         "front_right" : 0, # 1
@@ -20,7 +20,7 @@ data = {
         "lat": 21.213234,
         "alt": 13.345,
     },
-    "connection_quality": 80, # percentage
+    "connection_quality": 100, # percentage #?done
     "distance": {
         # KM
         "travelled": 12,
@@ -31,7 +31,7 @@ data = {
     },
     "duration": {
         # Time format 24
-        "elapsed": "00:00:00",
+        "elapsed": "00:00:00", #?done
         "remaining": "00:42:12",
         "estimated": "02:04:07"
     },
@@ -85,5 +85,5 @@ data = {
     "door_state":"closed", #?done
     "steering_status": "ok",#?done
     "brake_status": "ok",#?done
-    "timestamp": 0
+    "timestamp": 0 #?done
 }

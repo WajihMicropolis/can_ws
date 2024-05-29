@@ -252,8 +252,9 @@ class Robot_Node:
         self.elapsed_time = self.update_elapsed_time()
         self.robot_operational_details = self.Robot_Feedback.getRobotFeedback(self.elapsed_time)
         self.Robot_Feedback.updateDriveMode(self.robot_velocity_rpm.data)
-        # if self.robot_operational_details != self.prev_robot_operational_details:
-        #     self.prev_robot_operational_details = deepcopy(self.robot_operational_details)
+        self.Robot_Feedback.updateDirectionLight(self.robot_steering.data)
+        self.Robot_Feedback.updateDoorState()
+        
         self._robot_operational_details_pub.publish(self.robot_operational_details)
         
     def update_elapsed_time(self):
@@ -277,6 +278,7 @@ class Robot_Node:
             self.publish_robot_operational_details()
             self.publish_rate = rospy.Time.now()
 
+        
         self.battery_capacity = self.Robot_Feedback.getBatteryCapacity()
         self.publish_teleop()
 

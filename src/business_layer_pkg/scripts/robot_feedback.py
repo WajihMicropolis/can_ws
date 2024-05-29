@@ -55,6 +55,10 @@ class RobotFeedback:
         self.battery_state_count = 0
         self.emergency_cause_msg = String()
         self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
+        self.light_timer = rospy.Time.now()
+        self.door_state = "closed"
+        self.lifter_state = "closed"
+        self.drone_base_state = "closed"
         
         self.motors_speed_sub           = rospy.Subscriber("feedback/motors_speed",   Int16MultiArray, self.motors_speed_cb)
         self.steering_angle_sub         = rospy.Subscriber("feedback/steering_angle",     Int16MultiArray, self.steering_angle_cb)
@@ -66,9 +70,11 @@ class RobotFeedback:
         # self.imu_sub                    = rospy.Subscriber("feedback/imu",    Imu, self.imu_cb)
         self.robot_speed_sub            = rospy.Subscriber("feedback/robot_speed",    Float32, self.robot_speed_cb)
         self.door_state_sub             = rospy.Subscriber("feedback/door_state",     String, self.door_state_cb)
+        self.door_state_sub             = rospy.Subscriber("feedback/lifter_state",     String, self.lifter_state_cb)
+        self.door_state_sub             = rospy.Subscriber("feedback/drone_base_state",     String, self.drone_base_cb)
+        
         self.steering_state_sub         = rospy.Subscriber("feedback/steering_state",    String, self.steering_state_cb)
         self.brake_state_sub            = rospy.Subscriber("feedback/brake_state",   String, self.brake_state_cb)
-        # self.driving_mode_sub           = rospy.Subscriber("feedback/driving_mode",    String, self.driving_mode_cb)
         self.steering_health_check_sub  = rospy.Subscriber("feedback/steering_health_check",  Bool,  lambda msg : setattr(self, 'steering_health_check', msg.data))
         self.braking_health_check_sub   = rospy.Subscriber("feedback/braking_health_check",   Bool, lambda msg: setattr(self, 'braking_health_check', msg.data))
 
@@ -101,13 +107,6 @@ class RobotFeedback:
         self.ultrasonic['back_left']    = 1 if msg.data[3] < self.ultrasonic_threshold and msg.data[3] > 40 else 0
         self.ultrasonic['right']        = 1 if msg.data[4] < self.ultrasonic_threshold and msg.data[4] > 40 else 0
         self.ultrasonic['left']         = 1 if msg.data[5] < self.ultrasonic_threshold and msg.data[5] > 40 else 0
-        # print("ultrasonic: ", self.ultrasonic['front_right'])
-        # print("condition['front_right']: ", self.ultrasonic['front_right'])
-        # print("condition['front_left']: ", self.ultrasonic['front_left'])
-        # print("condition['back_right']: ", self.ultrasonic['back_right'])
-        # print("condition['back_left']: ", self.ultrasonic['back_left'])
-        # print("condition['right']: ", self.ultrasonic['right'])
-        # print("condition['left']: ", self.ultrasonic['left'])
         
         data['surroundings']['front_center']    = self.ultrasonic['front_right'] or self.ultrasonic['front_left']
         data['surroundings']['front_right']     = self.ultrasonic['front_right'] or self.ultrasonic['right']
@@ -146,8 +145,27 @@ class RobotFeedback:
         data['speed'] = int (speed_kmh)
 
     def door_state_cb(self, msg:String):
-        data['door_state'] = msg.data
-        # print("door state: ", data['door_state'])
+        self.door_state = msg.data
+    
+    def lifter_state_cb(self, msg:String):
+        self.lifter_state = msg.data
+        
+    def drone_base_cb(self, msg:String):
+        self.drone_base_state = msg.data
+
+    def updateDoorState(self):
+        
+        if self.door_state == "opening" and self.lifter_state == "closed" and self.drone_base_state == "closed":
+            data['door_state'] = "opening"
+            
+        elif self.door_state == "opened" and self.lifter_state == "opened" and self.drone_base_state == "opened":
+            data['door_state'] = "opened"
+        
+        elif self.door_state == "opened" and self.lifter_state == "opened" and self.drone_base_state == "closing":
+            data['door_state'] = "closing"
+            
+        elif self.door_state == "closed" and self.lifter_state == "closed" and self.drone_base_state == "closed":
+            data['door_state'] = "closed"
 
     def checkErrorState(self):
         
@@ -194,8 +212,6 @@ class RobotFeedback:
 
     def updateDriveMode(self, robot_velocity):
         self.robot_velocity = robot_velocity
-        # print("rob`ot_velocity: ", self.robot_velocity)
-        # print("robo`t_speed_feedback: ", self.robot_speed_feedback)
 
         if self.robot_velocity > 0 or self.robot_speed_feedback > 0:
             data['drivingMode'] = "D"
@@ -206,6 +222,24 @@ class RobotFeedback:
         elif self.robot_velocity == 0 or self.robot_speed_feedback == 0:
             data['drivingMode'] = "P"
     
+    def updateDirectionLight(self, direction):
+        
+        if direction < 1 and direction > -1:
+            data['lightning']['left'] = 0
+            data['lightning']['right'] = 0
+            return
+        if rospy.Time.now() - self.light_timer < rospy.Duration(0.3):
+            return
+        self.light_timer = rospy.Time.now()
+        if direction > 1:
+            data['lightning']['left'] = not data['lightning']['left']
+            data['lightning']['right'] = 0
+        
+        elif direction < -1:
+            data['lightning']['left'] = 0
+            data['lightning']['right'] = not data['lightning']['right']
+        
+        
     def getEmergencyCause(self):
         json_error = self.emergency_cause_msg.data
         return json_error
