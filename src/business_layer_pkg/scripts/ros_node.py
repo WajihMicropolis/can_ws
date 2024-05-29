@@ -48,7 +48,7 @@ class Robot_Node:
         self.door_control_sub   = rospy.Subscriber("door_control", String, self.door_control_cb)
         
         #! publishers to the Robot
-        self.tele_operator_pub      = rospy.Publisher("cmd_vel", Twist, queue_size=1, latch=True)
+        self.tele_operator_pub      = rospy.Publisher("teleop_cmd_vel", Twist, queue_size=1, latch=True)
         self.velocity_pub           = rospy.Publisher("robot/velocity",Float32,queue_size=1 ,latch=True)
         self.steering_pub           = rospy.Publisher("robot/steering",Float32,queue_size=1,latch=True)
         self.emergency_brake_pub    = rospy.Publisher("robot/emergency_brake",Bool,queue_size=1,latch=True)
@@ -136,8 +136,26 @@ class Robot_Node:
         print("mode to be checked: ", self._modeToBeChecked)
         return health_checkResponse(checks=self._modeToBeChecked)
 
+    def map_value(self,x, a, b, c, d):
+        """
+        Maps a value x from range [a, b] to range [c, d].
+
+        Parameters:
+        - x: The value to map.
+        - a: The lower bound of the original range.
+        - b: The upper bound of the original range.
+        - c: The lower bound of the new range.
+        - d: The upper bound of the new range.
+
+        Returns:
+        - The value of x mapped to the new range [c, d].
+        """
+        return float(c + (x - a) * (d - c) / (b - a))
+
     def autonomous_cmd_vel_cb(self, msg: Twist):
-        self.auto_pilot_command = msg
+        self.auto_pilot_command.linear = msg.linear
+        # map the steering angle from rad to degree
+        self.auto_pilot_command.angular.z = self.map_value(msg.angular.z, -0.25, 0.25, -16, 16)
         
     def door_control_cb(self, msg: String):
         _door_control = json.loads(msg.data)
@@ -237,8 +255,10 @@ class Robot_Node:
             self._robot_state_pub.publish(self.robot_state)
 
     def publish_teleop(self):
-        self.Robot_Control.teleop_control(self.teleoperator_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
+        self.teleoperator_command = self.Robot_Control.teleop_control()
+        self.robot_command = self.Robot_Control.priority_control(self.auto_pilot_command, self.teleoperator_command )
         
+        self.Robot_Control.get_robot_command(self.robot_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
         
         self.tele_operator_pub.     publish(self.teleoperator_command)
         self.velocity_pub.          publish(self.robot_velocity_rpm)

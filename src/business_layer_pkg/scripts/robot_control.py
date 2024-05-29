@@ -13,11 +13,16 @@ class Robot_Control:
 
         self.prev_steer_timer = rospy.get_time()
 
-        self.steering_angle_as_rad = False
+        self.steering_angle_as_rad  = False
         self.robot_velocity_rpm     = Float32()
         self.robot_steering         = Float32()
         self.robot_emergency_brake  = Bool()
         self.robot_door_control     = Int8()
+        self.teleoperator_command   = Twist()
+        self.robot_command          = Twist()
+        
+        self.overTakeTimeDrive = rospy.get_time()
+        self.overTakeTimeSteering = rospy.get_time()
 
         self.gear = 1
         self.drive_data = {"w": 0, "a": 0, "s": 0, "d": 0, "b": 0}
@@ -124,23 +129,48 @@ class Robot_Control:
 
         self.robot_steering_angle = round(self.robot_steering_angle, 2)
 
-    def priority_control(self, auto_pilot_command = Twist(), teleoperator_command = Twist(), robot_command = Twist()):
+    def priority_control(self, auto_pilot_command = Twist(), teleoperator_command = Twist()):
         
-        pass
+        auto_velocity, auto_steering = auto_pilot_command.linear.x, auto_pilot_command.angular.z
+        teleop_velocity, teleop_steering = teleoperator_command.linear.x, teleoperator_command.angular.z
+        
+        if  teleop_velocity != 0 or self.robot_emergency_brake.data:
+            self.robot_command.linear.x = teleop_velocity
+            self.robot_command.angular.z = teleop_steering        
+            self.overTakeTimeDrive = rospy.get_time()
+        else:
+            if rospy.get_time() - self.overTakeTimeDrive > 3: 
+                self.robot_command.linear.x = auto_velocity
+        
+        if self.drive_data["a"] or self.drive_data["d"]:
+            self.robot_command.angular.z = teleop_steering
+            self.overTakeTimeSteering = rospy.get_time()
+        else:
+            if rospy.get_time() - self.overTakeTimeSteering > 1:
+                self.robot_steering_angle = 0
+                self.robot_command.angular.z = auto_steering
+        # print("teleop_steering: ", teleop_steering)
+        # print("angular.z: ", self.robot_command.angular.z)
+            
+        
+        return self.robot_command
     
-    def teleop_control(self, teleoperator_command = Twist(),velocity_rpm = Float32(),steering = Float32(),emergency_brake = Bool()):
+    def teleop_control(self):
         self.update_speed()
         self.update_steering()
 
-        teleoperator_command.linear.x = self.robot_speed
-        teleoperator_command.angular.z = self.robot_steering_angle
+        self.teleoperator_command.linear.x = self.robot_speed
+        self.teleoperator_command.angular.z = self.robot_steering_angle
+        
+        return self.teleoperator_command
+    
+    def get_robot_command(self,cmd_vel = Twist() ,velocity_rpm = Float32(),steering = Float32(),emergency_brake = Bool()):
         
         # convert linear.x from m/s to rpm (maximum 100 rpm)
         # rpm * 2 * pi *r / 60 = m/s
-        velocity_rpm.data = self.robot_speed* 60 / (2 * PI * wheel_radius)
-        steering.data = self.robot_steering_angle
+        velocity_rpm.data = cmd_vel.linear.x* 60 / (2 * PI * wheel_radius)
+        steering.data = cmd_vel.angular.z
         emergency_brake.data = self.robot_emergency_brake.data
-        
     # def priority_control(self, teleoperator_command = Twist(), navigation_command = Twist(), cmd_vel = Twist()):
         
     #     pass
