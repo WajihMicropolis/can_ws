@@ -2,6 +2,7 @@
 import rospy
 import json
 from copy import deepcopy
+from std_srvs.srv import Trigger, TriggerResponse
 
 from std_msgs.msg import String
 from std_msgs.msg import Float32, Int16MultiArray, Bool, Int8
@@ -15,6 +16,7 @@ from business_layer_pkg.srv import (
 from robot_control import Robot_Control
 from robot_feedback import RobotFeedback
 import datetime
+import requests
 
 _healthCheckArray = [
     "CONNECTION_QUALITY",
@@ -58,6 +60,7 @@ class Robot_Node:
 
         # services
         self._health_check_srv = rospy.Service("health_check_srv", health_check, self.health_check_srv)
+        self.streams_srv = rospy.Service("streams_ids", Trigger, self.req_streames_cb)
 
         self.teleoperator_command   = Twist()
         self.auto_pilot_command     = Twist()
@@ -83,7 +86,7 @@ class Robot_Node:
         self._modeToBeChecked = []
         self.gear = 1
 
-        self.ip = "10.20.0.30"
+        self.ip = self.get_public_ip()
         self.Robot_Control = Robot_Control()
         self.Robot_Feedback = RobotFeedback(self.ip)
 
@@ -135,6 +138,44 @@ class Robot_Node:
 
         print("mode to be checked: ", self._modeToBeChecked)
         return health_checkResponse(checks=self._modeToBeChecked)
+
+    def get_public_ip(self):
+        try:
+            response = requests.get('https://api.ipify.org?format=json')
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            ip_info = response.json()
+            return ip_info['ip']
+        except requests.RequestException as e:
+            print(f"Error occurred: {e}")
+            return None
+    
+    def req_streames_cb(self,req):
+        public_ip = self.get_public_ip()
+        print("public ip: ", public_ip)
+        streams_ids = {
+            "streams": [
+                { 
+                    "name": "Front Camera",
+                    "type": "front", 
+                    "connectionId": {
+                        "address": public_ip,
+                        "port": 8555,
+                        "stream_name": "front_camera"
+                    }
+                },
+                {
+                    "name": "Back Camera", 
+                    "type": "back", 
+                    "connectionId": {
+                        "address": public_ip,
+                        "port": 8556,
+                        "stream_name": "back_camera"
+                    }
+                }
+            ]
+        }
+
+        return TriggerResponse(success=True, message=json.dumps(streams_ids))
 
     def map_value(self,x, a, b, c, d):
         """
