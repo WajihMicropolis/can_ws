@@ -85,6 +85,7 @@ class Robot_Node:
 
         self._modeToBeChecked = []
         self.gear = 1
+        self.door_control.data = 1
 
         self.ip = self.get_public_ip()
         self.Robot_Control = Robot_Control()
@@ -309,8 +310,8 @@ class Robot_Node:
         self.steering_pub.          publish(self.robot_steering)
         self.emergency_brake_pub.   publish(self.robot_emergency_brake)
         
-        if self.door_control.data != self.prev_door_control:
-            self.prev_door_control = deepcopy(self.door_control.data)
+        if self.door_control.data != self.prev_door_control.data:
+            self.prev_door_control.data = deepcopy(self.door_control.data)
             self.robot_door_control_pub.publish(self.door_control)
         
     def publish_robot_operational_details(self):
