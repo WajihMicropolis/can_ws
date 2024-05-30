@@ -24,6 +24,7 @@ class RobotFeedback:
         self.ultrasonic_threshold = 100
         self.robot_velocity = 0
         self.robot_speed_feedback = 0
+        self.connection_quality = 100
 
         self.ultrasonic = {
             "front_right": 0,
@@ -304,10 +305,13 @@ class RobotFeedback:
             return connection
         return 0
 
-    def getRobotFeedback(self, elapsed_time):
+    
+    def getRobotFeedback(self, elapsed_time, connection_quality):
+        connection_quality = self.getConnectionQuality()
+        
         data['duration']['elapsed'] = elapsed_time
         data['timestamp'] = rospy.get_time()
-        data['connection_quality'] = self.getConnectionQuality()
+        data['connection_quality'] = connection_quality 
         
         json_string = json.dumps(data)
 

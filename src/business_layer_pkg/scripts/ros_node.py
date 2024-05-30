@@ -156,6 +156,7 @@ class Robot_Node:
         self.auto_pilot_command.linear = msg.linear
         # map the steering angle from rad to degree
         self.auto_pilot_command.angular.z = self.map_value(msg.angular.z, -0.25, 0.25, -16, 16)
+        self.auto_pilot_command.angular.z = min(16,max(-16,self.auto_pilot_command.angular.z))
         
     def door_control_cb(self, msg: String):
         _door_control = json.loads(msg.data)
@@ -260,17 +261,21 @@ class Robot_Node:
         
         self.Robot_Control.get_robot_command(self.robot_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
         
+        self.robot_emergency_brake.data = True if self.connection_quality < 70 else False
+        
         self.tele_operator_pub.     publish(self.teleoperator_command)
         self.velocity_pub.          publish(self.robot_velocity_rpm)
         self.steering_pub.          publish(self.robot_steering)
         self.emergency_brake_pub.   publish(self.robot_emergency_brake)
+        
         if self.door_control.data != self.prev_door_control:
             self.prev_door_control = deepcopy(self.door_control.data)
             self.robot_door_control_pub.publish(self.door_control)
         
     def publish_robot_operational_details(self):
         self.elapsed_time = self.update_elapsed_time()
-        self.robot_operational_details = self.Robot_Feedback.getRobotFeedback(self.elapsed_time)
+        self.robot_operational_details = self.Robot_Feedback.getRobotFeedback(self.elapsed_time, self.connection_quality)
+        
         self.Robot_Feedback.updateDriveMode(self.robot_velocity_rpm.data)
         self.Robot_Feedback.updateDirectionLight(self.robot_steering.data)
         self.Robot_Feedback.updateDoorState()
