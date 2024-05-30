@@ -10,6 +10,7 @@
 #include "std_msgs/Int16MultiArray.h"
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/BatteryState.h"
+#include "sensor_msgs/Range.h"
 #include "business_layer_pkg/health_check.h"
 #include "CAN_Interface.hpp"
 
@@ -39,7 +40,11 @@ private:
         _brake_state_pub,
         _steering_health_check_pub,
         _braking_health_check_pub,
-        _drive_mode_pub;
+        _drive_mode_pub,
+        _front_right_ultrasonic_pub,
+        _front_left_ultrasonic_pub,
+        _back_right_ultrasonic_pub,
+        _back_left_ultrasonic_pub;
 
     ros::ServiceClient _health_check_client;
     business_layer_pkg::health_check _health_check_srv;
@@ -57,6 +62,11 @@ private:
 
     Imu _imu_msg;
     BatteryState _battery_state_msg;
+    Range _front_right_ultrasonic_msg,
+        _front_left_ultrasonic_msg,
+        _back_right_ultrasonic_msg,
+        _back_left_ultrasonic_msg;
+
     Float32 _robot_speed_msg;
 
     CAN_Interface *can_interface;

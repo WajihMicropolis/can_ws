@@ -28,6 +28,7 @@
 #include "std_msgs/Float32.h"
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/BatteryState.h"
+#include "sensor_msgs/Range.h"
 #include <tf2/LinearMath/Quaternion.h>
 
 class CANBus;
@@ -153,6 +154,10 @@ public:
 
       BatteryState battery_state;
       Imu imu;
+      Range front_right_ultrasonic,
+          front_left_ultrasonic,
+          back_right_ultrasonic,
+          back_left_ultrasonic;
       Float32 robot_speed;
 
       String door_state;

@@ -55,6 +55,11 @@ ROS_Node::ROS_Node(/* args */)
    this->_steering_health_check_pub = this->_nh->advertise<std_msgs::Bool>("feedback/steering_health_check", _queue_size, _latch);
    this->_braking_health_check_pub  = this->_nh->advertise<std_msgs::Bool>("feedback/braking_health_check", _queue_size, _latch);
 
+   this->_front_right_ultrasonic_pub = this->_nh->advertise<sensor_msgs::Range>("feedback/ultrasonic/fr", _queue_size, _latch);
+   this->_front_left_ultrasonic_pub  = this->_nh->advertise<sensor_msgs::Range>("feedback/ultrasonic/fl", _queue_size, _latch);
+   this->_back_right_ultrasonic_pub  = this->_nh->advertise<sensor_msgs::Range>("feedback/ultrasonic/br", _queue_size, _latch);
+   this->_back_left_ultrasonic_pub   = this->_nh->advertise<sensor_msgs::Range>("feedback/ultrasonic/bl", _queue_size, _latch);
+
    this->_can_feedback.motors_speed.data.resize(4);
    this->_can_feedback.steering_angle.data.resize(4);
    this->_can_feedback.brake_percentage.data.resize(4);
@@ -123,6 +128,22 @@ void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
    _battery_state_msg.header.frame_id = "battery";
    _battery_state_msg = feedback.battery_state;
 
+   _front_right_ultrasonic_msg = feedback.front_right_ultrasonic;
+   _front_right_ultrasonic_msg.header.frame_id = "front_left_ultrasonic";
+   _front_right_ultrasonic_msg.header.stamp = ros::Time::now();
+
+   _front_left_ultrasonic_msg = feedback.front_left_ultrasonic;
+   _front_left_ultrasonic_msg.header.frame_id = "front_left_ultrasonic";
+   _front_left_ultrasonic_msg.header.stamp = ros::Time::now();
+
+   _back_right_ultrasonic_msg = feedback.back_right_ultrasonic;
+   _back_right_ultrasonic_msg.header.frame_id = "back_right_ultrasonic";
+   _back_right_ultrasonic_msg.header.stamp = ros::Time::now();
+
+   _back_left_ultrasonic_msg = feedback.back_left_ultrasonic;
+   _back_left_ultrasonic_msg.header.frame_id = "back_left_ultrasonic";
+   _back_left_ultrasonic_msg.header.stamp = ros::Time::now();
+
    _robot_speed_msg = feedback.robot_speed;
 
    _steering_state_msg = feedback.steering_status;
@@ -144,6 +165,11 @@ void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
    _imu_pub.publish(_imu_msg);
    _battery_pub.publish(_battery_state_msg);
    _robot_speed_pub.publish(_robot_speed_msg);
+
+   _front_right_ultrasonic_pub.publish(_front_right_ultrasonic_msg);
+   _front_left_ultrasonic_pub.publish(_front_left_ultrasonic_msg);
+   _back_right_ultrasonic_pub.publish(_back_right_ultrasonic_msg);
+   _back_left_ultrasonic_pub.publish(_back_left_ultrasonic_msg);
 
    if (_steering_state_msg.data != "")
       _steering_state_pub  .publish(_steering_state_msg);

@@ -674,12 +674,15 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             feedback.ultrasonic.data.push_back(Vehicle.UltraSonicSensors.RearLeft * 2);
             feedback.ultrasonic.data.push_back(Vehicle.UltraSonicSensors.Right * 2);
             feedback.ultrasonic.data.push_back(Vehicle.UltraSonicSensors.Left * 2);
-            printf("Vehicle.UltraSonicSensors.FrontRight: %d\n", Vehicle.UltraSonicSensors.FrontRight);
-            printf("Vehicle.UltraSonicSensors.FrontLeft: %d\n", Vehicle.UltraSonicSensors.FrontLeft);
-            printf("Vehicle.UltraSonicSensors.RearRight: %d\n", Vehicle.UltraSonicSensors.RearRight);
-            printf("Vehicle.UltraSonicSensors.RearLeft: %d\n", Vehicle.UltraSonicSensors.RearLeft);
-            printf("Vehicle.UltraSonicSensors.Right: %d\n", Vehicle.UltraSonicSensors.Right);
-            printf("Vehicle.UltraSonicSensors.Left: %d\n", Vehicle.UltraSonicSensors.Left);
+
+            feedback.front_right_ultrasonic.min_range = feedback.front_left_ultrasonic.min_range = feedback.back_right_ultrasonic.min_range = feedback.back_left_ultrasonic.min_range = 0.4;
+            feedback.front_right_ultrasonic.max_range = feedback.front_left_ultrasonic.max_range = feedback.back_right_ultrasonic.max_range = feedback.back_left_ultrasonic.max_range = 4.0;
+            feedback.front_right_ultrasonic.range = Vehicle.UltraSonicSensors.FrontRight * 2 / 100;
+            feedback.front_left_ultrasonic.range = Vehicle.UltraSonicSensors.FrontLeft * 2 / 100;
+            feedback.back_right_ultrasonic.range = Vehicle.UltraSonicSensors.RearRight * 2 / 100;
+            feedback.back_left_ultrasonic.range = Vehicle.UltraSonicSensors.RearLeft * 2 / 100;
+            
+
             feedback.battery_state.voltage = Vehicle.PDU.BatteryStateOfCharge.BatteryVoltage;
             feedback.battery_state.current = Vehicle.PDU.BatteryStateOfCharge.BatteryCurrent;
             feedback.battery_state.percentage = Vehicle.PDU.BatteryStateOfCharge.BatteryChargePercentage;
