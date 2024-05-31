@@ -74,7 +74,7 @@ class Robot_Node:
         self.door_control                   = Int8()
         self.prev_door_control              = Int8()
 
-        self.robot_state = "KEY_OFF"
+        self.robot_state = "STAND_BY"
         self.prev_robot_state = ""
         self.old_robot_state = ""
 
@@ -303,7 +303,7 @@ class Robot_Node:
         
         self.Robot_Control.get_robot_command(self.robot_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
         
-        self.robot_emergency_brake.data = True if self.connection_quality < 70 else False
+        self.robot_emergency_brake.data = True if self.connection_quality < 70 else self.robot_emergency_brake.data
         
         self.tele_operator_pub.     publish(self.teleoperator_command)
         self.velocity_pub.          publish(self.robot_velocity_rpm)

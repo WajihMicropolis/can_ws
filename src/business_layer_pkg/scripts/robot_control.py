@@ -134,13 +134,16 @@ class Robot_Control:
         auto_velocity, auto_steering = auto_pilot_command.linear.x, auto_pilot_command.angular.z
         teleop_velocity, teleop_steering = teleoperator_command.linear.x, teleoperator_command.angular.z
         
-        if  teleop_velocity != 0 or self.robot_emergency_brake.data:
+        if  self.drive_data["w"] or self.drive_data["s"] or self.drive_data["b"]:
             self.robot_command.linear.x = teleop_velocity
             self.robot_command.angular.z = teleop_steering        
             self.overTakeTimeDrive = rospy.get_time()
+            
         else:
             if rospy.get_time() - self.overTakeTimeDrive > 3: 
                 self.robot_command.linear.x = auto_velocity
+            else: #! The robot will stop if no command is received from the teleoperator for 3 seconds
+                self.robot_command.linear.x = 0
         
         if self.drive_data["a"] or self.drive_data["d"]:
             self.robot_command.angular.z = teleop_steering
