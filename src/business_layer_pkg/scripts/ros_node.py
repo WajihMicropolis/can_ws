@@ -75,6 +75,7 @@ class Robot_Node:
         self.prev_door_control              = Int8()
 
         self.robot_state = "STAND_BY"
+        self.next_mode   = "STAND_BY"
         self.prev_robot_state = ""
         self.old_robot_state = ""
 
@@ -82,6 +83,7 @@ class Robot_Node:
         self.steering_health_check = True
         self.braking_health_check = True
         self.battery_capacity = 100
+        self.health_check_success = 0
 
         self._modeToBeChecked = []
         self.gear = 1
@@ -110,31 +112,31 @@ class Robot_Node:
         self.publish_rate = rospy.Time.now()
 
     def health_check_srv(self, req: health_checkRequest):
-        next_mode = req.nextMode
+        self.next_mode = req.nextMode
         
-        #! or next_mode == self.robot_state
-        if next_mode not in _nextModeArray :
-            rospy.logerr(f"Invalid : {next_mode}")
+        #! or self.next_mode == self.robot_state
+        if self.next_mode not in _nextModeArray :
+            rospy.logerr(f"Invalid : {self.next_mode}")
             return health_checkResponse(checks=[])
 
-        rospy.logdebug(f"health_check_srv: {next_mode}")
+        rospy.logdebug(f"health_check_srv: {self.next_mode}")
         self._modeToBeChecked = []
 
-        self.robot_state = next_mode
-        if next_mode == "STAND_BY":
+        # self.robot_state = self.next_mode
+        if self.next_mode == "STAND_BY":
             self._modeToBeChecked.append(_healthCheckArray[0])
 
-        elif next_mode == "FREE_DRIVING":
+        elif self.next_mode == "FREE_DRIVING":
             for i in range(3):
                 self._modeToBeChecked.append(_healthCheckArray[i])
 
-        elif next_mode == "MAPPING":
+        elif self.next_mode == "MAPPING":
             self._modeToBeChecked.append(_healthCheckArray[3])
 
-        elif next_mode == "MISSION_INDOOR":
+        elif self.next_mode == "MISSION_INDOOR":
             self._modeToBeChecked.append(_healthCheckArray[4])
 
-        elif next_mode == "MISSION_OUTDOOR":
+        elif self.next_mode == "MISSION_OUTDOOR":
             self._modeToBeChecked.append(_healthCheckArray[4])
 
         print("mode to be checked: ", self._modeToBeChecked)
@@ -237,7 +239,6 @@ class Robot_Node:
             and self.braking_health_check,
             "BATTERY_LEVEL": lambda: self.battery_capacity > 30,
         }
-
         if self.check_index < len(self._modeToBeChecked):
             check = self._modeToBeChecked[self.check_index]
             if self.status_index < (len(_modeCheckStatus) -1):
@@ -252,19 +253,34 @@ class Robot_Node:
                             "BATTERY_LEVEL": "low battery",
                         }
                         status += f":{error_messages[check]}"
+                    else:
+                        self.health_check_success += 1
                 else:
                     status = _modeCheckStatus[self.status_index]
                 
-                # print(f"{check}:{status}")
                 self._health_check_pub.publish(f"{check}:{status}")
                 self.status_index += 1
             else:
                 self.status_index = 0
                 self.check_index += 1
+                
+            # if self.check_index == (len(self._modeToBeChecked) -1):
+            #     if self.health_check_success == len(self._modeToBeChecked):
+            #         print("health check success")
+            #         self.robot_state = self.next_mode
+            #         self.health_check_success = 0
+                
         else:
+            if self.health_check_success == len(self._modeToBeChecked):
+                print("health check success")
+                self.robot_state = self.next_mode
             self.check_index = 0
             self.status_index = 0
+            self.health_check_success = 0
             self._modeToBeChecked = []
+        
+            
+            
 
         
     def publish_emergency_cause(self):
@@ -293,7 +309,7 @@ class Robot_Node:
             if self.robot_state != "KEY_OFF": # reset the timer
                 self.init_time = rospy.Time.now().to_sec()
 
-            print("robot_state: ", self.robot_state)
+            print("PUBLISH robot_state: ", self.robot_state)
             self.prev_robot_state = deepcopy(self.robot_state)
             self._robot_state_pub.publish(self.robot_state)
 
