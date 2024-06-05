@@ -18,8 +18,8 @@ class RobotFeedback:
     def __init__(self,_ip):
         self.ip = _ip
 
-        self.steering_health_check = False
-        self.braking_health_check = False
+        self.steering_health_check = True
+        self.braking_health_check = True
         self.battery_percentage = 100
         self.ultrasonic_threshold = 100
         self.robot_velocity = 0
@@ -50,6 +50,14 @@ class RobotFeedback:
             },
             "low_battery": True # False
         }
+        # self.pod_details = {
+        #     "doors_state":{
+        #         "front_right": "closed",
+        #         "front_left": "closed",
+        #         "back_right": "closed",
+        #         "back_left": "closed",
+        #     }
+        # }
         self.prev_emergency_causes = deepcopy(self.emergency_causes)
         self.steering_state_count = 0
         self.brake_state_count = 0
@@ -70,9 +78,10 @@ class RobotFeedback:
         self.battery_sub                = rospy.Subscriber("feedback/battery",    BatteryState, self.battery_cb)
         # self.imu_sub                    = rospy.Subscriber("feedback/imu",    Imu, self.imu_cb)
         self.robot_speed_sub            = rospy.Subscriber("feedback/robot_speed",    Float32, self.robot_speed_cb)
-        self.door_state_sub             = rospy.Subscriber("feedback/door_state",     String, self.door_state_cb)
-        self.door_state_sub             = rospy.Subscriber("feedback/lifter_state",     String, self.lifter_state_cb)
-        self.door_state_sub             = rospy.Subscriber("feedback/drone_base_state",     String, self.drone_base_cb)
+        self.door_state_sub             = rospy.Subscriber("feedback/door_state",     String, lambda msg : setattr(self, 'door_state', msg.data))
+        self.lifter_state_sub           = rospy.Subscriber("feedback/lifter_state",     String, lambda msg : setattr(self, 'lifter_state', msg.data))
+        self.drone_base_state_sub       = rospy.Subscriber("feedback/drone_base_state",     String, lambda msg : setattr(self, 'drone_base_state', msg.data))
+        self.pod_doors_state_sub        = rospy.Subscriber("feedback/pod_doors_state",     String, self.pod_doors_state_cb)
         
         self.steering_state_sub         = rospy.Subscriber("feedback/steering_state",    String, self.steering_state_cb)
         self.brake_state_sub            = rospy.Subscriber("feedback/brake_state",   String, self.brake_state_cb)
@@ -80,7 +89,7 @@ class RobotFeedback:
         self.braking_health_check_sub   = rospy.Subscriber("feedback/braking_health_check",   Bool, lambda msg: setattr(self, 'braking_health_check', msg.data))
 
 
-
+# ! CALLBACKS
     def motors_speed_cb(self, msg: Int16MultiArray):
         data['motors_details']['fr']['rpm'] = abs(msg.data[0])
         data['motors_details']['fl']['rpm'] = abs(msg.data[1])
@@ -122,15 +131,30 @@ class RobotFeedback:
         data['orientation']['pitch']    = msg.data[1]
         data['orientation']['yaw']      = msg.data[2]
 
-    def checkBatteryState(self):
-        if self.battery_percentage < 30:
-            self.battery_state_count += 1
-            if self.battery_state_count > 20 and self.emergency_causes["low_battery"] == False:
-                self.emergency_causes["low_battery"] = True
-                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
-                self.battery_state_count = 0
-        
+    def pod_doors_state_cb(self, msg: String):
+        if not msg.data:
+            return
+        split_data = msg.data.split(':')
+        data['door_state']['front_right'] = split_data[0]
+        data['door_state']['front_left'] = split_data[1]
+        data['door_state']['back_right'] = split_data[2]
+        data['door_state']['back_left'] = split_data[3]
+
+    # def door_state_cb(self, msg:String):
+    #     self.door_state = msg.data
     
+    # def lifter_state_cb(self, msg:String):
+    #     self.lifter_state = msg.data
+        
+    # def drone_base_cb(self, msg:String):
+    #     self.drone_base_state = msg.data
+    
+    def robot_speed_cb(self, msg:Float32):
+        self.robot_speed_feedback = msg.data
+        # convert the speed from rpm to km/h
+        speed_kmh = abs(self.robot_speed_feedback * 2 * PI * wheel_radius * 60) / 1000
+        data['speed'] = int (speed_kmh)
+        
     def battery_cb(self, msg: BatteryState):
         if not msg.voltage:
             return
@@ -139,54 +163,6 @@ class RobotFeedback:
         data['temperature'] = msg.temperature
         self.checkBatteryState()
 
-    def robot_speed_cb(self, msg:Float32):
-        self.robot_speed_feedback = msg.data
-        # convert the speed from rpm to km/h
-        speed_kmh = abs(self.robot_speed_feedback * 2 * PI * wheel_radius * 60) / 1000
-        data['speed'] = int (speed_kmh)
-
-    def door_state_cb(self, msg:String):
-        self.door_state = msg.data
-    
-    def lifter_state_cb(self, msg:String):
-        self.lifter_state = msg.data
-        
-    def drone_base_cb(self, msg:String):
-        self.drone_base_state = msg.data
-
-    def updateDoorState(self):
-        
-        if self.door_state == "opening" and self.lifter_state == "closed" and self.drone_base_state == "closed":
-            data['door_state'] = "opening"
-            
-        elif self.door_state == "opened" and self.lifter_state == "opened" and self.drone_base_state == "opened":
-            data['door_state'] = "opened"
-        
-        elif self.door_state == "opened" and self.lifter_state == "opened" and self.drone_base_state == "closing":
-            data['door_state'] = "closing"
-            
-        elif self.door_state == "closed" and self.lifter_state == "closed" and self.drone_base_state == "closed":
-            data['door_state'] = "closed"
-
-    def checkErrorState(self):
-        
-        if self.emergency_causes["steering"] != self.prev_emergency_causes["steering"]:
-            self.steering_state_count += 1
-            
-            if self.steering_state_count > 20:
-                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
-                self.steering_state_count = 0
-                self.prev_emergency_causes["steering"] = deepcopy(self.emergency_causes["steering"])
-                
-        if self.emergency_causes["brake"] != self.prev_emergency_causes["brake"]:
-            self.brake_state_count += 1
-            
-            if self.brake_state_count > 20:
-                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
-                self.brake_state_count = 0
-                self.prev_emergency_causes["brake"] = deepcopy(self.emergency_causes["brake"])
-        
-            
     def steering_state_cb(self, msg:String):
         if not msg.data:
             return
@@ -210,6 +186,50 @@ class RobotFeedback:
         self.emergency_causes["brake"]['back right']   = split_data[2]
         self.emergency_causes["brake"]['back left']    = split_data[3]
         self.checkErrorState()
+
+# ! Get and Update Data
+    def checkBatteryState(self):
+        if self.battery_percentage < 30:
+            self.battery_state_count += 1
+            if self.battery_state_count > 20 and self.emergency_causes["low_battery"] == False:
+                self.emergency_causes["low_battery"] = True
+                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
+                self.battery_state_count = 0
+                
+                
+    def updateDoorState(self):
+        
+        if self.door_state == "opening" and self.lifter_state == "closed" and self.drone_base_state == "closed":
+            data['door_state']["top"] = "opening"
+            
+            
+        elif self.door_state == "opened" and self.lifter_state == "opened" and self.drone_base_state == "opened":
+            data['door_state']["top"] = "opened"
+        
+        elif self.door_state == "opened" and self.lifter_state == "opened" and self.drone_base_state == "closing":
+            data['door_state']["top"] = "closing"
+            
+        elif self.door_state == "closed" and self.lifter_state == "closed" and self.drone_base_state == "closed":
+            data['door_state']["top"] = "closed"
+
+    def checkErrorState(self):
+        
+        if self.emergency_causes["steering"] != self.prev_emergency_causes["steering"]:
+            self.steering_state_count += 1
+            
+            if self.steering_state_count > 20:
+                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
+                self.steering_state_count = 0
+                self.prev_emergency_causes["steering"] = deepcopy(self.emergency_causes["steering"])
+                
+        if self.emergency_causes["brake"] != self.prev_emergency_causes["brake"]:
+            self.brake_state_count += 1
+            
+            if self.brake_state_count > 20:
+                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
+                self.brake_state_count = 0
+                self.prev_emergency_causes["brake"] = deepcopy(self.emergency_causes["brake"])
+        
 
     def updateDriveMode(self, robot_velocity):
         self.robot_velocity = robot_velocity
@@ -241,19 +261,7 @@ class RobotFeedback:
             data['lightning']['right'] = not data['lightning']['right']
         
         
-    def getEmergencyCause(self):
-        json_error = self.emergency_cause_msg.data
-        return json_error
 
-
-    def getBatteryCapacity(self):
-        return self.battery_percentage
-
-    def getHealthCheck(self):
-        # print("steering_health_check: ", self.steering_health_check)
-        # print("braking_health_check: ", self.braking_health_check)
-        return self.steering_health_check, self.braking_health_check
-    
     def ping_host(self,ip, count=1):
         try:
             # Run the ping command
@@ -305,8 +313,20 @@ class RobotFeedback:
             return connection
         return 0
 
+    def getEmergencyCause(self):
+        return self.emergency_cause_msg.data
+
+    def getBatteryCapacity(self):
+        return self.battery_percentage
+
+    def getHealthCheck(self):
+        return self.steering_health_check, self.braking_health_check
     
-    def getRobotFeedback(self, elapsed_time, connection_quality):
+    # def getPodDetails(self):
+    #     pod_json = json.dumps(self.pod_details)
+    #     return pod_json
+    
+    def getRobotDetails(self, elapsed_time, connection_quality):
         connection_quality = self.getConnectionQuality()
         
         data['duration']['elapsed'] = elapsed_time

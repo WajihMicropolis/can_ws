@@ -64,6 +64,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
   FILES
   health_check.srv
+  end_map.srv
 )
 
 ## Generate actions in the 'action' folder

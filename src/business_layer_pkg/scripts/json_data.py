@@ -82,8 +82,20 @@ data = {
         "power": 23.434
         }
     },
-    "door_state":"closed", #?done
-    "steering_status": "ok",#?done
-    "brake_status": "ok",#?done
+    
+    "door_state":{
+        "top":"closed",
+        "front_right": "closed",
+        "front_left": "closed",
+        "back_right": "closed",
+        "back_left": "closed",
+    },
+    
     "timestamp": 0 #?done
+    
+}
+
+door_control = {
+    "target_door":"top",
+    "target_state": 1
 }
