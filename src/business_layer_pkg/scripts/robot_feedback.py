@@ -4,6 +4,7 @@ import rospy
 import json
 import subprocess
 import re
+import datetime
 
 from std_msgs.msg import String
 from std_msgs.msg import Float32, Int16MultiArray, Bool, Float32MultiArray, Int8
@@ -65,6 +66,9 @@ class RobotFeedback:
         self.emergency_cause_msg = String()
         self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
         self.light_timer = rospy.Time.now()
+        self.init_time = rospy.Time.now().to_sec()
+        self.elapsed_time = "00:00:00"
+        
         self.door_state = "closed"
         self.lifter_state = "closed"
         self.drone_base_state = "closed"
@@ -322,14 +326,21 @@ class RobotFeedback:
     def getHealthCheck(self):
         return self.steering_health_check, self.braking_health_check
     
-    # def getPodDetails(self):
-    #     pod_json = json.dumps(self.pod_details)
-    #     return pod_json
+    def update_elapsed_time(self, robot_state):
+        if robot_state == "KEY_OFF":
+            return
+        t = rospy.Time.now().to_sec()
+        start_time = t - self.init_time
+        start_time = round(start_time, 2)
+        elapsed_time = datetime.timedelta(seconds=int(start_time))
+        time_str = str(elapsed_time)
+        # print("time: ", time_str)
+        return time_str
     
-    def getRobotDetails(self, elapsed_time, connection_quality):
+    def getRobotDetails(self, connection_quality,robot_state):
         connection_quality = self.getConnectionQuality()
         
-        data['duration']['elapsed'] = elapsed_time
+        data['duration']['elapsed'] = self.update_elapsed_time(robot_state)
         data['timestamp'] = rospy.get_time()
         data['connection_quality'] = connection_quality 
         

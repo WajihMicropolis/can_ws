@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from sympy import capture
+
 import rospy
 import json
 import os
@@ -8,20 +8,19 @@ import subprocess
 import roslaunch
 import rospkg
 import rosnode
+import rostopic
 
 from std_srvs.srv import Trigger, TriggerResponse
 from business_layer_pkg.srv import end_map,end_mapRequest ,end_mapResponse
 
-from std_msgs.msg import String
-from std_msgs.msg import Float32, Int8MultiArray, Bool, Int8
+from std_msgs.msg import Float32, Int8MultiArray, Bool, String
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import BatteryState, Imu
+from sensor_msgs.msg import PointCloud2
 from business_layer_pkg.srv import health_check,health_checkRequest,health_checkResponse
 
 from hdl_graph_slam.srv import SaveMap, SaveMapRequest
 from robot_control import Robot_Control
 from robot_feedback import RobotFeedback
-import datetime
 import requests
 
 _healthCheckArray = [
@@ -64,14 +63,17 @@ class Robot_Node:
         self.emergency_brake_pub    = rospy.Publisher("robot/emergency_brake",Bool,queue_size=1,latch=True)
         self.robot_door_control_pub = rospy.Publisher("robot/door_control",Int8MultiArray,queue_size=1,latch=True)
         #! subscribers from auto-pilot
-        self._auto_pilot_sub = rospy.Subscriber("autonomous_cmd_vel", Twist, self.autonomous_cmd_vel_cb)
+        self._auto_pilot_sub    = rospy.Subscriber("autonomous_cmd_vel", Twist, self.autonomous_cmd_vel_cb)
+        self.rt                 = rostopic.ROSTopicHz(-1)
+        self._pcl_sub           = rospy.Subscriber("cloud", PointCloud2, self.rt.callback_hz)
+        self.timer              = rospy.Timer(rospy.Duration(1), self.timer_callback)  # Check the rate every second 
 
         # services
         self._health_check_srv  = rospy.Service("health_check_srv", health_check, self.health_check_srv)
-        self._streams_srv        = rospy.Service("streams_ids", Trigger, self.req_streames_srv)
-        self._start_map_srv      = rospy.Service("start_map_srv", Trigger, self.start_map_srv)
-        self._end_map_srv        = rospy.Service("end_map_srv", end_map, self.end_map_srv)
-        self._save_map_srv       = rospy.ServiceProxy("/hdl_graph_slam/save_map", SaveMap)
+        self._streams_srv       = rospy.Service("streams_ids", Trigger, self.req_streames_srv)
+        self._start_map_srv     = rospy.Service("start_map_srv", Trigger, self.start_map_srv)
+        self._end_map_srv       = rospy.Service("end_map_srv", end_map, self.end_map_srv)
+        self._save_map_srv      = rospy.ServiceProxy("/hdl_graph_slam/save_map", SaveMap)
 
         #! variables
         self.teleoperator_command   = Twist()
@@ -97,12 +99,13 @@ class Robot_Node:
         self.braking_health_check = True
         self.battery_capacity = 100
         self.health_check_success = 0
+        self.pcl_rate = 0
 
         self._modeToBeChecked = []
         self.gear = 1
         self.door_control.data = [1,1,1,1,1]
         
-        self.Robot_Control = Robot_Control()
+        self.Robot_Control  = Robot_Control()
         self.Robot_Feedback = RobotFeedback(self.ip)
 
         self.drive_data = {"w": 0, "a": 0, "s": 0, "d": 0, "b": 0}
@@ -119,8 +122,7 @@ class Robot_Node:
         self.emergency_check_time = 0.3
         self.prev_emergency_cause_time = rospy.Time.now()
 
-        self.init_time = rospy.Time.now().to_sec()
-        self.elapsed_time = "00:00:00"
+
         self.prev_publish_time = rospy.Time.now()
         
         self.start_mapping_srv = False
@@ -136,6 +138,15 @@ class Robot_Node:
         }
         print("Robot Node is ready, ", rospy.Time.now().to_sec())
 
+    def timer_callback(self, event):
+        # if self.robot_state != "mapping":
+        #     return
+        hz_data = self.rt.get_hz()
+        if hz_data:
+            self.pcl_rate = hz_data[0]
+        else:
+            self.pcl_rate = 0
+            
     def health_check_srv(self, req: health_checkRequest):
         self.next_mode = req.nextMode
         
@@ -226,6 +237,7 @@ class Robot_Node:
     def end_map_srv(self,req: end_mapRequest):
         if not self.mapping:
             return end_mapResponse(success=False, status_message="map not started")
+        
         print("----------save map---------")
         print("req save map: ",req.save_map)
         print("req map name: ",req.map_name)
@@ -233,6 +245,8 @@ class Robot_Node:
         # todo : save the map and send it to the server
         
         if req.save_map:
+            if not req.map_name:
+                return end_mapResponse(success=False, status_message="map name is required")
             print("save map")
             rospy.wait_for_service('/hdl_graph_slam/save_map')
             print("service ready")
@@ -324,6 +338,7 @@ class Robot_Node:
             "HARDWARE": lambda: self.steering_health_check
             and self.braking_health_check,
             "BATTERY_LEVEL": lambda: self.battery_capacity > 30,
+            "SENSOR": lambda: self.pcl_rate > 0,
         }
         if self.check_index < len(self._modeToBeChecked):
             check = self._modeToBeChecked[self.check_index]
@@ -337,6 +352,7 @@ class Robot_Node:
                             "CONNECTION_QUALITY": "connection error",
                             "HARDWARE": "steering error" if not self.steering_health_check else "brake error" if not self.braking_health_check else "hardware error",
                             "BATTERY_LEVEL": "low battery",
+                            "SENSOR": "lidar not working",
                         }
                         status += f":{error_messages[check]}"
                     else:
@@ -359,14 +375,12 @@ class Robot_Node:
             self.health_check_success = 0
             self._modeToBeChecked = []
         
-            
     def publish_doors_control(self):
         
         if self.door_control.data != self.prev_door_control.data:
             self.prev_door_control.data = deepcopy(self.door_control.data)
             self.robot_door_control_pub.publish(self.door_control)
 
-        
     def publish_emergency_cause(self):
         if rospy.Time.now() - self.prev_emergency_cause_time < rospy.Duration(self.emergency_check_time):
             return
@@ -413,25 +427,15 @@ class Robot_Node:
         self.publish_doors_control()
 
 
-    def update_elapsed_time(self):
-        if self.robot_state == "KEY_OFF":
-            return
-        t = rospy.Time.now().to_sec()
-        start_time = t - self.init_time
-        start_time = round(start_time, 2)
-        elapsed_time = datetime.timedelta(seconds=int(start_time))
-        time_str = str(elapsed_time)
-        # print("time: ", time_str)
-        return time_str
+    
 
     def publish_robot_operational_details(self):
-        self.elapsed_time = self.update_elapsed_time()
         
         self.Robot_Feedback.updateDriveMode(self.robot_velocity_rpm.data)
         self.Robot_Feedback.updateDirectionLight(self.robot_steering.data)
         self.Robot_Feedback.updateDoorState()
         
-        self.robot_operational_details = self.Robot_Feedback.getRobotDetails(self.elapsed_time, self.connection_quality)
+        self.robot_operational_details = self.Robot_Feedback.getRobotDetails( self.connection_quality, self.robot_state)
         self._robot_operational_details_pub.publish(self.robot_operational_details)
         
     def update(self):
