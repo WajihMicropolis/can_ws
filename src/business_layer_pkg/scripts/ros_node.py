@@ -5,6 +5,9 @@ import json
 import os
 from copy import deepcopy
 import subprocess
+import roslaunch
+import rospkg
+import rosnode
 
 from std_srvs.srv import Trigger, TriggerResponse
 from business_layer_pkg.srv import end_map,end_mapRequest ,end_mapResponse
@@ -13,11 +16,9 @@ from std_msgs.msg import String
 from std_msgs.msg import Float32, Int8MultiArray, Bool, Int8
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import BatteryState, Imu
-from business_layer_pkg.srv import (
-    health_check,
-    health_checkRequest,
-    health_checkResponse,
-)
+from business_layer_pkg.srv import health_check,health_checkRequest,health_checkResponse
+
+from hdl_graph_slam.srv import SaveMap, SaveMapRequest
 from robot_control import Robot_Control
 from robot_feedback import RobotFeedback
 import datetime
@@ -70,6 +71,7 @@ class Robot_Node:
         self._streams_srv        = rospy.Service("streams_ids", Trigger, self.req_streames_srv)
         self._start_map_srv      = rospy.Service("start_map_srv", Trigger, self.start_map_srv)
         self._end_map_srv        = rospy.Service("end_map_srv", end_map, self.end_map_srv)
+        self._save_map_srv       = rospy.ServiceProxy("/hdl_graph_slam/save_map", SaveMap)
 
         #! variables
         self.teleoperator_command   = Twist()
@@ -121,7 +123,9 @@ class Robot_Node:
         self.elapsed_time = "00:00:00"
         self.prev_publish_time = rospy.Time.now()
         
-        self.start_mapping = False
+        self.start_mapping_srv = False
+        self.mapping = False
+        # self.map_path = rospkg.RosPack().get_path('')
         
         self.pod_doors_control = {
             "top":0,
@@ -201,64 +205,54 @@ class Robot_Node:
 
         return TriggerResponse(success=True, message=json.dumps(streams_ids))
 
-    def start_map_srv(self,req):
-        package = 'octomap_server'
-        launch_file = 'octomap_mapping.launch'
-        args = 'open_rviz:=false'
-        ros_env = "~/webots_dir/devel/setup.bash"
-        
-        command = "roslaunch {0} {1} {2}".format(package, launch_file, args)
-
-        result = subprocess.Popen(command)
-        state = result.poll()
-
-
-        print("state: ", state)
-        print("stdout: ", result.stdout)
-        print("stderr: ", result.stderr)
-        
-        if state is None:
-            rospy.loginfo("process is running fine")
-        elif state < 0:
-            rospy.loginfo("Process terminated with error")
-        elif state > 0:
-            rospy.loginfo("Process terminated without error")
-        print("start_map_srv")
-        self.start_mapping = True
+    def start_map_srv(self,req):      
+        self.start_mapping_srv = True
         return TriggerResponse(success=True, message="map started")
 
+    def launch_map_server(self):
+        pkg_name = "hdl_graph_slam"
+        launch_file = "hdl_graph_slam.launch"
+        
+        uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+        roslaunch.configure_logging(uuid)
+
+        launch_file_path = roslaunch.rlutil.resolve_launch_arguments([pkg_name,launch_file])[0]
+        launch_files = [launch_file_path]
+
+        launch = roslaunch.parent.ROSLaunchParent(uuid, launch_files)
+        launch.start()
+        self.mapping = True
+        
     def end_map_srv(self,req: end_mapRequest):
-        if not self.start_mapping:
-            return end_mapResponse(success=False)
+        if not self.mapping:
+            return end_mapResponse(success=False, status_message="map not started")
+        print("----------save map---------")
         print("req save map: ",req.save_map)
         print("req map name: ",req.map_name)
+        self.map_name = req.map_name
         # todo : save the map and send it to the server
         
         if req.save_map:
             print("save map")
+            rospy.wait_for_service('/hdl_graph_slam/save_map')
+            print("service ready")
+            map_req = SaveMapRequest()
+            map_req.utm = False
+            map_req.resolution = 0.1
+            map_req.destination = f"/home/microspot/can_ws/{req.map_name}.pcd"
+            map_result = self._save_map_srv(map_req)
+            print("map_result: ", map_result)
             
-            command = f"bash -c ' rosrun map_server map_saver -f /home/microspot/catkin_ws/maps/{req.map_name} map:=/projected_map'"
-            result = subprocess.run(command, capture_output=True, text=True, shell=True,timeout=3)
-            if 'Done' in result.stdout:
-                print("Map saved successfully.")
-            else:
-                print("Map saving failed. Check the output for details.")
-                print("stdout:", result.stdout)
-                print("stderr:", result.stderr)
-                return end_mapResponse(success=False, status_message="map not saved")
+        kill_node = rosnode.kill_nodes(['/hdl_nodelet_manager'])
         
+        print("kill node: ", kill_node)
+        if kill_node[0] and not kill_node[1]:
+            rospy.loginfo("Node killed successfully")
+            return end_mapResponse(success=True, status_message="mapping node ended")
         
-        kill_command = "rosnode kill /octomap_server"
-        p = subprocess.Popen(kill_command, shell=True)
-
-        state = p.poll()
-        if state is None:
-            rospy.loginfo("process is running fine")
-        elif state < 0:
-            rospy.loginfo("Process terminated with error")
-        elif state > 0:
-            rospy.loginfo("Process terminated without error")
-        return end_mapResponse(success=True, status_message="map ended")
+        rospy.logerr("Node not killed successfully")
+        return end_mapResponse(success=False, status_message="mapping node not ended")
+        
     
     def map_value(self,x, a, b, c, d):
         """
@@ -451,7 +445,11 @@ class Robot_Node:
             # self.publish_pod_details()
             self.prev_publish_time = rospy.Time.now()
 
-        
+        # ! for mapping it should be in the loop not in the service callback
+        if self.start_mapping_srv:
+            self.launch_map_server()
+            self.start_mapping_srv = False
+            
         self.battery_capacity = self.Robot_Feedback.getBatteryCapacity()
         self.publish_teleop()
 
