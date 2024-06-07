@@ -139,8 +139,6 @@ class Robot_Node:
         print("Robot Node is ready, ", rospy.Time.now().to_sec())
 
     def timer_callback(self, event):
-        # if self.robot_state != "mapping":
-        #     return
         hz_data = self.rt.get_hz()
         if hz_data:
             self.pcl_rate = hz_data[0]
@@ -260,13 +258,19 @@ class Robot_Node:
         kill_node = rosnode.kill_nodes(['/hdl_nodelet_manager'])
         
         print("kill node: ", kill_node)
+        #     return
+        self.mapping = False
         if kill_node[0] and not kill_node[1]:
             rospy.loginfo("Node killed successfully")
             return end_mapResponse(success=True, status_message="mapping node ended")
         
         rospy.logerr("Node not killed successfully")
         return end_mapResponse(success=False, status_message="mapping node not ended")
-        
+
+    def check_node(self,node_name):
+        node_ping = rosnode.rosnode_ping(node_name, 1)
+        # print("node ping: ",n)
+        return node_ping
     
     def map_value(self,x, a, b, c, d):
         """
@@ -446,7 +450,8 @@ class Robot_Node:
         
         if rospy.Time.now() - self.prev_publish_time > rospy.Duration(0.2):
             self.publish_robot_operational_details()
-            # self.publish_pod_details()
+            
+
             self.prev_publish_time = rospy.Time.now()
 
         # ! for mapping it should be in the loop not in the service callback
