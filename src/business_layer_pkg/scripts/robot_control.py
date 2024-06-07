@@ -149,9 +149,12 @@ class Robot_Control:
             self.robot_command.angular.z = teleop_steering
             self.overTakeTimeSteering = rospy.get_time()
         else:
-            if rospy.get_time() - self.overTakeTimeSteering > 1:
-                self.robot_steering_angle = 0
-                self.robot_command.angular.z = auto_steering
+            if rospy.get_time() - self.overTakeTimeSteering > 3:
+                if auto_steering != 0.0:
+                    self.robot_steering_angle = 0
+                    self.robot_command.angular.z = auto_steering
+                else:
+                    self.robot_command.angular.z = teleop_steering
         # print("teleop_steering: ", teleop_steering)
         # print("angular.z: ", self.robot_command.angular.z)
             

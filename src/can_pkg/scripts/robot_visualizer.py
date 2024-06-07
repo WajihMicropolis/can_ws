@@ -15,6 +15,16 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         rospy.init_node('feedback_visualizer_node', anonymous=True)
         self.rospack = rospkg.RosPack()
         
+        # Variables
+        self.motors_speed = Int16MultiArray()
+        self.steering_angle = Int16MultiArray()
+        self.brake_percentage = Int16MultiArray()
+        self.ultrasonic = Int16MultiArray()
+        self.steer_error = ""
+        self.brake_error = ""
+        self.robot_velocity = Float32()
+        self.robot_steering = Float32()
+        self.emergency_brake = Bool()
         self.battery = BatteryState()
         
         # Subscribers
@@ -29,16 +39,6 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         self.robot_steering_sub     = rospy.Subscriber('robot/steering', Float32, self.robot_steering_cb)
         self.battery_sub            = rospy.Subscriber("feedback/battery",BatteryState, lambda msg : setattr(self, 'battery', msg))
 
-        # Variables
-        self.motors_speed = Int16MultiArray()
-        self.steering_angle = Int16MultiArray()
-        self.brake_percentage = Int16MultiArray()
-        self.ultrasonic = Int16MultiArray()
-        self.steer_error = ""
-        self.brake_error = ""
-        self.robot_velocity = Float32()
-        self.robot_steering = Float32()
-        self.emergency_brake = Bool()
         
         # Image paths
         pkg_path = self.rospack.get_path('can_pkg')
@@ -182,10 +182,10 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
             self.BR_break_error_label.setText(self.brake_error[2])
             self.BL_break_error_label.setText(self.brake_error[3])
             
-        if self.robot_velocity.data:
+        # if self.robot_velocity.data:
             self.control_speed_label.setText(f"{self.robot_velocity.data} rpm")
             
-        if self.robot_steering.data:
+        # if self.robot_steering.data:
             self.control_steering_label.setText(f"{self.robot_steering.data}°")
             
         if self.emergency_brake.data:
@@ -197,9 +197,9 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
             self.control_break_label.setStyleSheet("color: white")
             
         if self.battery.voltage:
-            self.batter_percentage_label.setText(f"{self.battery.percentage} %")
-            self.battery_current_label.setText(f"{self.battery.current} A")
-            self.battery_voltage_label.setText(f"{self.battery.voltage} V")
+            self.batter_percentage_label.setText(f"{int(self.battery.percentage)} %")
+            self.battery_current_label.setText(f"{round(self.battery.current,1)} A")
+            self.battery_voltage_label.setText(f"{round(self.battery.voltage,1)} V")
             
             
 

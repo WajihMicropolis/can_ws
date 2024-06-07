@@ -534,7 +534,7 @@ void CAN_Interface::sendDoorControl(vector<int> doorControl)
    podBoxCommand |= doorControl[4] << 2;
    podBoxCommand |= doorControl[3] << 3;
    podBoxCommand |= doorControl[1] << 4;
-   
+   Vehicle.Door_Lifter.PodBoxCommand = podBoxCommand; 
    CONVERTERu16tou8(&cMessage.CANMessageData[0], (Vehicle.Door_Lifter.DoorCommand)); // velocity m/s
    CONVERTERu16tou8(&cMessage.CANMessageData[1], (Vehicle.Door_Lifter.PodBoxCommand)); // 
 
@@ -692,6 +692,7 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             feedback.battery_state.current = Vehicle.PDU.BatteryStateOfCharge.BatteryCurrent;
             feedback.battery_state.percentage = Vehicle.PDU.BatteryStateOfCharge.BatteryChargePercentage;
             feedback.battery_state.capacity = Vehicle.PDU.BatteryStateOfCharge.Range;
+            feedback.battery_state.temperature = Vehicle.PDU.BatteryStateOfCharge.BatteryTemperature;
 
             feedback.rpy.data.clear();
             feedback.rpy.data.push_back(Vehicle.IMUSensor.Angle.Angle_Roll);
@@ -722,8 +723,8 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             printf("Vehicle.Door_Lifter.DroneBaseStatus: %d\n", Vehicle.Door_Lifter.DroneBaseStatus);
 
             feedback.door_state.data = doorStateStr[Vehicle.Door_Lifter.DoorStatus];
-            feedback.lifter_state.data = doorStateStr[Vehicle.Door_Lifter.LifterStatus];
-            feedback.drone_base_state.data = doorStateStr[Vehicle.Door_Lifter.DroneBaseStatus];
+            // feedback.lifter_state.data = doorStateStr[Vehicle.Door_Lifter.LifterStatus];
+            // feedback.drone_base_state.data = doorStateStr[Vehicle.Door_Lifter.DroneBaseStatus];
 
             _steering_braking_status = steeringBrakingStatus();
             feedback.steering_status.data = _steering_braking_status.first;

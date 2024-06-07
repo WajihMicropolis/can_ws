@@ -147,9 +147,9 @@ STATUS_TypeDef CANBus::ParserCANMessage(uint16_t ID, unsigned char *RxData)
 		else if(ROBOT_VERSION == 0x01)
 		{
 			Vehicle.Door_Lifter.PodDoorStatus[0] = (STATUS_DoorAnsLifter)(RxData[1] & 0x01);
-			Vehicle.Door_Lifter.PodDoorStatus[1] = (STATUS_DoorAnsLifter)(RxData[1] & 0x02);
-			Vehicle.Door_Lifter.PodDoorStatus[2] = (STATUS_DoorAnsLifter)(RxData[1] & 0x04);
-			Vehicle.Door_Lifter.PodDoorStatus[3] = (STATUS_DoorAnsLifter)(RxData[1] & 0x08);
+			Vehicle.Door_Lifter.PodDoorStatus[1] = (STATUS_DoorAnsLifter)((RxData[1] & 0x02)>>1);
+			Vehicle.Door_Lifter.PodDoorStatus[2] = (STATUS_DoorAnsLifter)((RxData[1] & 0x04)>>2);
+			Vehicle.Door_Lifter.PodDoorStatus[3] = (STATUS_DoorAnsLifter)((RxData[1] & 0x08)>>3);
 		}
 		break;
 	case MRCU_STATE_OF_CHARGE:
