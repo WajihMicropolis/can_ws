@@ -522,15 +522,21 @@ void CAN_Interface::sendEmergencyBrake(bool emergencyBrake)
    canBus->SendCANMessage(cMessage);
 }
 
-void CAN_Interface::sendDoorControl(uint8_t doorControl)
+void CAN_Interface::sendDoorControl(vector<int> doorControl)
 {
    // TODO re-check with najib
    cMessage.CANMessgeID = canBus->EncodeCANID(canBus->MRCU, ORIN_DOOR_LIFTER_COMMAND, canBus->Stream); // receiber board id, message number (from CanBus.h), status of the message (from google form)
-   cMessage.CANMessageLength = 0x01;                                                                   // from google form
+   cMessage.CANMessageLength = 0x02;                                                                   // from google form
 
-   Vehicle.Door_Lifter.DoorCommand = doorControl; // from ros
-
+   Vehicle.Door_Lifter.DoorCommand = doorControl[0]; // from ros
+   uint8_t podBoxCommand = 0;
+   podBoxCommand |= doorControl[2] << 1;
+   podBoxCommand |= doorControl[4] << 2;
+   podBoxCommand |= doorControl[3] << 3;
+   podBoxCommand |= doorControl[1] << 4;
+   
    CONVERTERu16tou8(&cMessage.CANMessageData[0], (Vehicle.Door_Lifter.DoorCommand)); // velocity m/s
+   CONVERTERu16tou8(&cMessage.CANMessageData[1], (Vehicle.Door_Lifter.PodBoxCommand)); // 
 
    canBus->SendCANMessage(cMessage);
 }
@@ -620,15 +626,15 @@ pair<string, string> CAN_Interface::steeringBrakingStatus()
    brakingStatus.push_back(getBrakingError(Vehicle.WheelRearLeft.Braking.BrakingStatus));
 
    for (int i = 0; i < steeringStatus.size(); i++)
-   {  
-      if(i == steeringStatus.size() - 1)
+   {
+      if (i == steeringStatus.size() - 1)
       {
          _steeringStatus += steeringStatus[i];
          _brakingStatus += brakingStatus[i];
       }
       else
       {
-         _steeringStatus += steeringStatus[i] + ":" ;
+         _steeringStatus += steeringStatus[i] + ":";
          _brakingStatus += brakingStatus[i] + ":";
       }
    }
@@ -681,7 +687,6 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             feedback.front_left_ultrasonic.range = Vehicle.UltraSonicSensors.FrontLeft * 2 / 100;
             feedback.back_right_ultrasonic.range = Vehicle.UltraSonicSensors.RearRight * 2 / 100;
             feedback.back_left_ultrasonic.range = Vehicle.UltraSonicSensors.RearLeft * 2 / 100;
-            
 
             feedback.battery_state.voltage = Vehicle.PDU.BatteryStateOfCharge.BatteryVoltage;
             feedback.battery_state.current = Vehicle.PDU.BatteryStateOfCharge.BatteryCurrent;
@@ -715,7 +720,7 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             printf("Vehicle.Door_Lifter.DoorStatus: %d\n", Vehicle.Door_Lifter.DoorStatus);
             printf("Vehicle.Door_Lifter.LifterStatus: %d\n", Vehicle.Door_Lifter.LifterStatus);
             printf("Vehicle.Door_Lifter.DroneBaseStatus: %d\n", Vehicle.Door_Lifter.DroneBaseStatus);
-    
+
             feedback.door_state.data = doorStateStr[Vehicle.Door_Lifter.DoorStatus];
             feedback.lifter_state.data = doorStateStr[Vehicle.Door_Lifter.LifterStatus];
             feedback.drone_base_state.data = doorStateStr[Vehicle.Door_Lifter.DroneBaseStatus];
@@ -724,8 +729,15 @@ void CAN_Interface::getFeedback(CANFeedback &feedback)
             feedback.steering_status.data = _steering_braking_status.first;
             feedback.braking_status.data = _steering_braking_status.second;
 
-            feedback.steering_health_check.data = Vehicle.SteeringSystemState.SystemReady;
-            feedback.braking_health_check.data = Vehicle.BrakingSystemState.SystemReady;
+            feedback.pod_doors_state.data = podBoxStateStr[Vehicle.Door_Lifter.PodDoorStatus[3]].c_str();
+            feedback.pod_doors_state.data += ':';
+            feedback.pod_doors_state.data += podBoxStateStr[Vehicle.Door_Lifter.PodDoorStatus[0]].c_str();
+            feedback.pod_doors_state.data += ':';
+            feedback.pod_doors_state.data += podBoxStateStr[Vehicle.Door_Lifter.PodDoorStatus[2]].c_str();
+            feedback.pod_doors_state.data += ':';
+            feedback.pod_doors_state.data += podBoxStateStr[Vehicle.Door_Lifter.PodDoorStatus[1]].c_str();
+
+            
 
             // feedback.driving_mode = getDrivingMode(feedback.robot_speed.data, feedback.brake_percentage, Vehicle.DesiredCarParameters.DesiredVelocity);
 

@@ -249,8 +249,10 @@ typedef struct
 {
 	uint8_t DoorCommand;
 	bool LifterCommand;
+	uint8_t PodBoxCommand;
 	STATUS_DoorAnsLifter DoorStatus;
 	STATUS_DoorAnsLifter LifterStatus;
+	STATUS_DoorAnsLifter PodDoorStatus[4];
 	STATUS_DoorAnsLifter DroneBaseStatus;
 } DoorAndLifter;
 

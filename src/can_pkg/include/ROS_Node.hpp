@@ -4,7 +4,7 @@
 #include "ros/ros.h"
 #include "std_msgs/Float32.h"
 #include "std_msgs/Int32.h"
-#include "std_msgs/Int8.h"
+#include "std_msgs/Int8MultiArray.h"
 #include "std_msgs/Bool.h"
 #include "std_msgs/String.h"
 #include "std_msgs/Int16MultiArray.h"
@@ -44,7 +44,8 @@ private:
         _front_right_ultrasonic_pub,
         _front_left_ultrasonic_pub,
         _back_right_ultrasonic_pub,
-        _back_left_ultrasonic_pub;
+        _back_left_ultrasonic_pub,
+        _pod_doors_state_pub;
 
     ros::ServiceClient _health_check_client;
     business_layer_pkg::health_check _health_check_srv;
@@ -79,7 +80,8 @@ private:
         _door_state_msg,
         _lifter_state_msg,
         _drone_base_state_msg,
-        _drive_mode_msg;
+        _drive_mode_msg,
+        _pod_doors_state_msg;
 
     std_msgs::Bool _steering_health_check_msg,
         _braking_health_check_msg;
@@ -94,7 +96,7 @@ private:
     int idle_counter = 0;
     float _speed_fb = 0.0;
     bool _emergency_brake = false;
-    uint8_t _door_control = false;
+    vector<int> _door_control;
 
     void getRosParam(std::string paramName, auto &paramValue);
     void printOnTerminal();

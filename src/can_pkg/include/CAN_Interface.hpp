@@ -120,6 +120,7 @@ private:
    CANBus *canBus;
    // CANMessage cMessage;
    string doorStateStr[6] = {"opened", "closed", "opening", "closing","stopped","error"};
+   string podBoxStateStr[2] = {"closed", "opened"};
    
 
    CANUSB_SPEED canusb_int_to_speed(int speed);
@@ -165,6 +166,7 @@ public:
       String drone_base_state;
       String steering_status;
       String braking_status;
+      String pod_doors_state;
       String driving_mode;
 
       Bool steering_health_check;
@@ -177,7 +179,7 @@ public:
 
    void sendEmergencyBrake(bool emergencyBrake);
    void sendCmdVel(float velocity, float steering);
-   void sendDoorControl(uint8_t doorControl);
+   void sendDoorControl(vector<int> doorControl);
 
    CAN_Interface(char *port);
    ~CAN_Interface();

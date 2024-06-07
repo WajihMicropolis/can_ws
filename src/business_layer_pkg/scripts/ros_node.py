@@ -302,9 +302,10 @@ class Robot_Node:
         _target_door = _door_control["target_door"]
         _target_state = _door_control["target_state"]
         
-        # print("target_door: ", _target_door)
-        # print("target_state: ",_target_state)
-        self.pod_doors_control[_target_door] = 0 if _target_state =="open" else 2
+        if _target_door == "top":        
+            self.pod_doors_control[_target_door] = 0 if _target_state =="open" else 2
+        else:
+            self.pod_doors_control[_target_door] = 1 if _target_state =="open" else 0
         # print(self.pod_doors_control)
         self.door_control.data = [self.pod_doors_control["top"] ,self.pod_doors_control["front_right"], self.pod_doors_control["front_left"], self.pod_doors_control["back_right"], self.pod_doors_control["back_left"]]
 

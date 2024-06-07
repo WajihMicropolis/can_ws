@@ -3,7 +3,7 @@
 ROS_Node::ROS_Node(/* args */)
 {
    this->_nh = new ros::NodeHandle(); // Create a Node Handle for the ROS
-
+   this->_door_control.resize(5);
    this->_health_check_client = this->_nh->serviceClient<business_layer_pkg::health_check>("health_check");
 
    this->_velocity_sub = this->_nh->subscribe<std_msgs::Float32>("robot/velocity", 1, [&](const std_msgs::Float32::ConstPtr &velocityMsg)
@@ -25,14 +25,22 @@ ROS_Node::ROS_Node(/* args */)
                                                                         if (emergencyBrakeMsg->data)
                                                                            this->_velocity = 0; });
 
-   this->_door_control_sub = this->_nh->subscribe<std_msgs::Int8>("robot/door_control", 1, [&](const std_msgs::Int8::ConstPtr &doorControlMsg)
+   this->_door_control_sub = this->_nh->subscribe<std_msgs::Int8MultiArray>("robot/door_control", 1, [&](const std_msgs::Int8MultiArray::ConstPtr &doorControlMsg)
                                                                   {
-                                                                     _door_control = doorControlMsg->data;
+                                                                     
+                                                                     _door_control[0] = doorControlMsg->data[0];
+                                                                     _door_control[1] = doorControlMsg->data[1];
+                                                                     _door_control[2] = doorControlMsg->data[2];
+                                                                     _door_control[3] = doorControlMsg->data[3];
+                                                                     _door_control[4] = doorControlMsg->data[4];
                                                                      //   std::cout<<"door_control: " <<_door_control<<std::endl;
                                                                   });
    this->_robot_state_sub = this->_nh->subscribe<std_msgs::String>("robot/state", 1, &ROS_Node::robotStateCallback, this);
 
-   this->_door_control = 1;
+   // this->_door_control = 1;
+   for (int i = 0; i < _door_control.size() ; i++)
+      _door_control[i] = 1;
+   
    bool _latch = true;
    uint8_t _queue_size = 1;
 
@@ -50,6 +58,7 @@ ROS_Node::ROS_Node(/* args */)
    this->_drone_base_state_pub   = this->_nh->advertise<std_msgs::String>           ("feedback/drone_base_state", _queue_size, _latch);
    this->_steering_state_pub     = this->_nh->advertise<std_msgs::String>           ("feedback/steering_state", _queue_size, _latch);
    this->_brake_state_pub        = this->_nh->advertise<std_msgs::String>           ("feedback/brake_state", _queue_size, _latch);
+   this->_pod_doors_state_pub    = this->_nh->advertise<std_msgs::String>           ("feedback/pod_doors_state", _queue_size, _latch);
    // this->_drive_mode_pub      = this->_nh->advertise<std_msgs::String>           ("feedback/driving_mode", _queue_size, _latch);
 
    this->_steering_health_check_pub = this->_nh->advertise<std_msgs::Bool>("feedback/steering_health_check", _queue_size, _latch);
@@ -107,6 +116,7 @@ void ROS_Node::update()
       can_interface->sendCmdVel(this->_velocity, this->_steering);
       can_interface->sendEmergencyBrake(this->_emergency_brake);
       can_interface->sendDoorControl(this->_door_control);
+
       this->_sendTime = ros::Time::now();
    }
    // this->printOnTerminal();
@@ -151,6 +161,7 @@ void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
    _lifter_state_msg = feedback.lifter_state;
    _drone_base_state_msg = feedback.drone_base_state;
    _brake_state_msg = feedback.braking_status;
+   _pod_doors_state_msg = feedback.pod_doors_state;
    // _drive_mode_msg = feedback.driving_mode;
 
    _steering_health_check_msg = feedback.steering_health_check;
@@ -181,6 +192,8 @@ void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
       _lifter_state_pub    .publish(_lifter_state_msg);
    if (_drone_base_state_msg.data != "")
       _drone_base_state_pub.publish(_drone_base_state_msg);
+   if (_pod_doors_state_msg.data != "")
+      _pod_doors_state_pub.publish(_pod_doors_state_msg);
    // _drive_mode_pub.publish(_drive_mode_msg);
 
    _steering_health_check_pub.publish(_steering_health_check_msg);
