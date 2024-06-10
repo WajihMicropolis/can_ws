@@ -103,7 +103,9 @@ class Robot_Node:
 
         self._modeToBeChecked = []
         self.gear = 1
-        self.door_control.data = [1,1,1,1,1]
+        
+        self.door_control.data = [2,0,0,0,0]
+        self.prev_door_control.data = deepcopy(self.door_control.data)
         
         self.Robot_Control  = Robot_Control()
         self.Robot_Feedback = RobotFeedback(self.ip)
@@ -130,12 +132,14 @@ class Robot_Node:
         # self.map_path = rospkg.RosPack().get_path('')
         
         self.pod_doors_control = {
-            "top":0,
+            "top":2,
             "front_right": 0,
             "front_left": 0,
             "back_right": 0,
             "back_left": 0
         }
+        self.door_pulse_timer = rospy.Time.now()
+        self.publish_pulse = False
         print("Robot Node is ready, ", rospy.Time.now().to_sec())
 
     def timer_callback(self, event):
@@ -219,6 +223,8 @@ class Robot_Node:
         return TriggerResponse(success=True, message="map started")
 
     def launch_map_server(self):
+        if not self.start_mapping_srv:
+            return
         pkg_name = "hdl_graph_slam"
         launch_file = "hdl_graph_slam.launch"
         
@@ -230,6 +236,8 @@ class Robot_Node:
 
         launch = roslaunch.parent.ROSLaunchParent(uuid, launch_files)
         launch.start()
+        
+        self.start_mapping_srv = False
         self.mapping = True
         
     def end_map_srv(self,req: end_mapRequest):
@@ -295,6 +303,7 @@ class Robot_Node:
         self.auto_pilot_command.angular.z = min(16,max(-16,self.auto_pilot_command.angular.z))
         
     def door_control_cb(self, msg: String):
+        print("door_control_cb: ", msg.data)
         if not msg.data:
             return
         
@@ -306,12 +315,16 @@ class Robot_Node:
         _target_door = _door_control["target_door"]
         _target_state = _door_control["target_state"]
         
+        print("target_door: ", _target_door)
+        print("target_state: ", _target_state)
+        
         if _target_door == "top":        
             self.pod_doors_control[_target_door] = 0 if _target_state =="open" else 2
         else:
             self.pod_doors_control[_target_door] = 1 if _target_state =="open" else 0
         # print(self.pod_doors_control)
         self.door_control.data = [self.pod_doors_control["top"] ,self.pod_doors_control["front_right"], self.pod_doors_control["front_left"], self.pod_doors_control["back_right"], self.pod_doors_control["back_left"]]
+        
 
     def gear_cb(self, msg: String):
 
@@ -383,8 +396,21 @@ class Robot_Node:
     def publish_doors_control(self):
         
         if self.door_control.data != self.prev_door_control.data:
-            self.prev_door_control.data = deepcopy(self.door_control.data)
+            print("door_control: ", self.door_control.data)
+            print("prev_door_control: ", self.prev_door_control.data)
             self.robot_door_control_pub.publish(self.door_control)
+            self.prev_door_control.data = deepcopy(self.door_control.data)
+            self.publish_pulse = True
+            self.door_pulse_timer = rospy.Time.now()
+            
+        
+        if self.publish_pulse and rospy.Time.now() - self.door_pulse_timer > rospy.Duration(1):
+            
+            self.pod_doors_control["front_right"],self.pod_doors_control["front_left"],self.pod_doors_control["back_right"],self.pod_doors_control["back_left"] = 0,0,0,0
+            
+            self.door_control.data = [self.pod_doors_control["top"] ,self.pod_doors_control["front_right"], self.pod_doors_control["front_left"], self.pod_doors_control["back_right"], self.pod_doors_control["back_left"]]
+            self.publish_pulse = False
+        pass
 
     def publish_emergency_cause(self):
         if rospy.Time.now() - self.prev_emergency_cause_time < rospy.Duration(self.emergency_check_time):
@@ -422,6 +448,7 @@ class Robot_Node:
         
         self.Robot_Control.get_robot_command(self.robot_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
         
+        # ! emergency brake if the connection quality is less than 70
         self.robot_emergency_brake.data = True if self.connection_quality < 70 else self.robot_emergency_brake.data
         
         self.tele_operator_pub.     publish(self.teleoperator_command)
@@ -451,14 +478,11 @@ class Robot_Node:
         
         if rospy.Time.now() - self.prev_publish_time > rospy.Duration(0.2):
             self.publish_robot_operational_details()
+            self.prev_publish_time = rospy.Time.now()
             
 
-            self.prev_publish_time = rospy.Time.now()
-
         # ! for mapping it should be in the loop not in the service callback
-        if self.start_mapping_srv:
-            self.launch_map_server()
-            self.start_mapping_srv = False
+        self.launch_map_server()
             
         self.battery_capacity = self.Robot_Feedback.getBatteryCapacity()
         self.publish_teleop()
