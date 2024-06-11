@@ -12,7 +12,7 @@ import rospkg
 import rosnode
 import rostopic
 
-from std_msgs.msg import Float32, Int8MultiArray, Bool, String
+from std_msgs.msg import Float32, Int8MultiArray, Bool, String, Int32
 from std_srvs.srv import Trigger, TriggerResponse
 from business_layer_pkg.srv import end_map, end_mapRequest, end_mapResponse
 
@@ -52,6 +52,8 @@ class Robot_Node:
     def __init__(self):
         rospy.init_node("robot_node", anonymous=True)
         self.ip = self.get_public_ip()
+        self.pcl_topic = self.get_param("/robot_control/pcl_topic")
+        self.autonomous_cmd_topic = self.get_param("/robot_control/autonomous_cmd_topic")
         
         #! publishers to the Teleoperation software
         self._robot_state_pub               = rospy.Publisher("robot_state", String, queue_size=1, latch=True)
@@ -62,6 +64,7 @@ class Robot_Node:
         self._gear_sub           = rospy.Subscriber("gear", String, self.gear_cb)
         self._wasdb_sub          = rospy.Subscriber("wasdb", String, self.wasdb_cb)
         self._door_control_sub   = rospy.Subscriber("door_control", String, self.door_control_cb)
+        self._ros_bridge_cli     = rospy.Subscriber("/client_count", Int32, lambda msg: setattr(self, 'connected_clients', msg.data))
         
         #! publishers to the Robot
         self.tele_operator_pub      = rospy.Publisher("teleop_cmd_vel", Twist, queue_size=1, latch=True)
@@ -70,9 +73,9 @@ class Robot_Node:
         self.emergency_brake_pub    = rospy.Publisher("robot/emergency_brake",Bool,queue_size=1,latch=True)
         self.robot_door_control_pub = rospy.Publisher("robot/door_control",Int8MultiArray,queue_size=1,latch=True)
         #! subscribers from auto-pilot
-        self._auto_pilot_sub    = rospy.Subscriber("autonomous_cmd_vel", Twist, self.autonomous_cmd_vel_cb)
+        self._auto_pilot_sub    = rospy.Subscriber(self.autonomous_cmd_topic, Twist, self.autonomous_cmd_vel_cb)
         self.rt                 = rostopic.ROSTopicHz(-1)
-        self._pcl_sub           = rospy.Subscriber("cloud", PointCloud2, self.rt.callback_hz)
+        self._pcl_sub           = rospy.Subscriber(self.pcl_topic, PointCloud2, self.rt.callback_hz)
         self.timer              = rospy.Timer(rospy.Duration(1), self.timer_callback)  # Check the rate every second 
 
         #! services
@@ -101,12 +104,13 @@ class Robot_Node:
         self.prev_robot_state = ""
         self.old_robot_state = ""
 
-        self.connection_quality = 75
-        self.steering_health_check = True
-        self.braking_health_check = True
-        self.battery_capacity = 100
-        self.health_check_success = 0
-        self.pcl_rate = 0
+        self.connection_quality     = 75
+        self.steering_health_check  = True
+        self.braking_health_check   = True
+        self.battery_capacity       = 100
+        self.health_check_success   = 0
+        self.pcl_rate               = 0
+        self.connected_clients      = 0
 
         self._modeToBeChecked = []
         self.gear = 1
@@ -149,13 +153,22 @@ class Robot_Node:
         self.publish_pulse = False
         print("Robot Node is ready, ", rospy.Time.now().to_sec())
 
+        
     def timer_callback(self, event):
         hz_data = self.rt.get_hz()
         if hz_data:
             self.pcl_rate = hz_data[0]
         else:
             self.pcl_rate = 0
-            
+       
+    def get_param(self, param_name):
+        if not rospy.has_param(param_name):
+            rospy.logerr(f"Parameter '{param_name}' not found")
+            return
+        param_value = rospy.get_param(param_name)     
+        print(f"{param_name}: {param_value}")
+        return param_value
+        
     def health_check_srv(self, req: health_checkRequest):
         self.next_mode = req.nextMode
         
@@ -365,20 +378,20 @@ class Robot_Node:
             "BATTERY_LEVEL": lambda: self.battery_capacity > 30,
             "SENSOR": lambda: self.pcl_rate > 0,
         }
+        error_messages = {
+            "CONNECTION_QUALITY": "connection error",
+            "HARDWARE": "steering error" if not self.steering_health_check else "brake error" if not self.braking_health_check else "hardware error",
+            "BATTERY_LEVEL": "low battery",
+            "SENSOR": "lidar not working",
+        }
         if self.check_index < len(self._modeToBeChecked):
             check = self._modeToBeChecked[self.check_index]
-            if self.status_index < (len(_modeCheckStatus) -1):
+            if self.status_index < (len(_modeCheckStatus) -1): # start, pending, succeeded or failed
 
                 if self.status_index == 2:
-                    status = (_modeCheckStatus[2]if status_checks[check]()else _modeCheckStatus[3])
+                    status = (_modeCheckStatus[2] if status_checks[check] else _modeCheckStatus[3])
 
                     if status == _modeCheckStatus[3]:
-                        error_messages = {
-                            "CONNECTION_QUALITY": "connection error",
-                            "HARDWARE": "steering error" if not self.steering_health_check else "brake error" if not self.braking_health_check else "hardware error",
-                            "BATTERY_LEVEL": "low battery",
-                            "SENSOR": "lidar not working",
-                        }
                         status += f":{error_messages[check]}"
                     else:
                         self.health_check_success += 1
@@ -480,28 +493,33 @@ class Robot_Node:
     
     def ros_nodes_check(self, robot_state):
         # ! CAN_INTERFACE must always be running
+        # ! WebSocket must always be running
         # ! hdl_nodelet_manager must be running in case of mapping
         # ! hdl_localozation must be running in case of auto-pilot
         # ! move_base must be running in case of auto-pilot
-
         if rospy.Time.now() - self.nodes_check_time < rospy.Duration(0.1):
             return
         self.nodes_check_time = rospy.Time.now()
-        
-        if "STAND_BY" or "KEY_OFF" in robot_state:
+        if robot_state == "STAND_BY" or robot_state == "KEY_OFF" :
             return
         
         # todo: change robot state to EMERGENCY if nodes are not running and send the emergency cause
         # todo: retry to connect to the nodes
+        #! check connection between Auto -> Embedded
         self.can_check = self.check_node("/can_node")
-        self.websocket = self.check_node("/rosbridge_websocket")
         
+        #! check connection between Auto -> Teleoperator
+        self.websocket = self.check_node("/rosbridge_websocket")
+        print(f"websocket node:    {self.websocket}")
+        print(f"connected clients: {self.connected_clients}")
+        print("---------------")
         if robot_state == "MAPPING" and self.mapping:
             self.hdl_nodelet_manager_check = self.check_node("/hdl_nodelet_manager")
             
         elif "MISSION" in robot_state:
             self.hdl_localization_check = self.check_node("/hdl_localization")
             self.move_base_check = self.check_node("/move_base")
+            
         
         
     def update(self):

@@ -1,8 +1,12 @@
 <?xml version="1.0"?>
 <launch>
-	<node pkg="business_layer_pkg" type="ros_node.py" name="robot_control" output="screen" />
-	
+
+	<node pkg="business_layer_pkg" type="ros_node.py" name="robot_control" output="screen">
+		<param name="pcl_topic" value="cloud" />
+		<param name="autonomous_cmd_topic" value="autonomous_cmd_vel" />
+	</node>
+
 	<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
-		<param name="port" value="9090"/>
+		<arg name="port" value="9990" />
 	</include>
 </launch>
