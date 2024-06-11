@@ -3,7 +3,7 @@
    <arg name="port" default="/dev/ttyUSB0" />
    <arg name="publish_rate" default= "100" />
    <arg name="send_rate" default="100" />
-   <node pkg="dummy_can_pkg" type="dummy_can_node" name="dummy_can_node" output="screen">
+   <node pkg="dummy_can_pkg" type="dummy_can_node" name="can_node" output="screen">
       <param name="port" value="$(arg port)"/>
       <param name="publish_rate" value="$(arg publish_rate)"/>
       <param name="send_rate" value="$(arg send_rate)"/>

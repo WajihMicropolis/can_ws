@@ -25,11 +25,11 @@ ROS_Node::ROS_Node(/* args */)
                                                                         if (emergencyBrakeMsg->data)
                                                                            this->_velocity = 0; });
 
-   this->_door_control_sub = this->_nh->subscribe<std_msgs::Int8>("robot/door_control", 1, [&](const std_msgs::Int8::ConstPtr &doorControlMsg)
-                                                                  {
-                                                                     _door_control = doorControlMsg->data;
-                                                                     //   std::cout<<"door_control: " <<_door_control<<std::endl;
-                                                                  });
+   // this->_door_control_sub = this->_nh->subscribe<std_msgs::Int8>("robot/door_control", 1, [&](const std_msgs::Int8::ConstPtr &doorControlMsg)
+   //                                                                {
+   //                                                                   _door_control = doorControlMsg->data;
+   //                                                                   //   std::cout<<"door_control: " <<_door_control<<std::endl;
+   //                                                                });
    this->_robot_state_sub = this->_nh->subscribe<std_msgs::String>("robot/state", 1, &ROS_Node::robotStateCallback, this);
 
    this->_door_control = 1;

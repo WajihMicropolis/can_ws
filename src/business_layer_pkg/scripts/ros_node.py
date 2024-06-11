@@ -1,24 +1,12 @@
 #!/usr/bin/env python3
 
-import rospy
 import json
-import os
 from copy import deepcopy
 import subprocess
-import roslaunch
-import rospkg
-import rosnode
-import rostopic
+from ros_architecture import *
 
-from std_srvs.srv import Trigger, TriggerResponse
-from business_layer_pkg.srv import end_map,end_mapRequest ,end_mapResponse
 
-from std_msgs.msg import Float32, Int8MultiArray, Bool, String
-from geometry_msgs.msg import Twist
-from sensor_msgs.msg import PointCloud2
-from business_layer_pkg.srv import health_check,health_checkRequest,health_checkResponse
 
-from hdl_graph_slam.srv import SaveMap, SaveMapRequest
 from robot_control import Robot_Control
 from robot_feedback import RobotFeedback
 import requests
@@ -68,7 +56,7 @@ class Robot_Node:
         self._pcl_sub           = rospy.Subscriber("cloud", PointCloud2, self.rt.callback_hz)
         self.timer              = rospy.Timer(rospy.Duration(1), self.timer_callback)  # Check the rate every second 
 
-        # services
+        #! services
         self._health_check_srv  = rospy.Service("health_check_srv", health_check, self.health_check_srv)
         self._streams_srv       = rospy.Service("streams_ids", Trigger, self.req_streames_srv)
         self._start_map_srv     = rospy.Service("start_map_srv", Trigger, self.start_map_srv)
@@ -90,7 +78,7 @@ class Robot_Node:
         
 
         self.robot_state = "STAND_BY"
-        self.next_mode   = "STAND_BY"
+        self.next_mode   = deepcopy(self.robot_state)
         self.prev_robot_state = ""
         self.old_robot_state = ""
 
@@ -126,10 +114,10 @@ class Robot_Node:
 
 
         self.prev_publish_time = rospy.Time.now()
+        self.nodes_check_time = rospy.Time.now()
         
         self.start_mapping_srv = False
         self.mapping = False
-        # self.map_path = rospkg.RosPack().get_path('')
         
         self.pod_doors_control = {
             "top":2,
@@ -410,7 +398,6 @@ class Robot_Node:
             
             self.door_control.data = [self.pod_doors_control["top"] ,self.pod_doors_control["front_right"], self.pod_doors_control["front_left"], self.pod_doors_control["back_right"], self.pod_doors_control["back_left"]]
             self.publish_pulse = False
-        pass
 
     def publish_emergency_cause(self):
         if rospy.Time.now() - self.prev_emergency_cause_time < rospy.Duration(self.emergency_check_time):
@@ -418,8 +405,7 @@ class Robot_Node:
         self.prev_emergency_cause_time = rospy.Time.now()
 
         self.emergency_cause = self.Robot_Feedback.getEmergencyCause()
-        # print("emergency_cause: ", self.emergency_cause)
-        # print("prev_emergency_cause: ", self.prev_emergency_cause)
+
         if self.emergency_cause != self.prev_emergency_cause:
             # todo in case of no emergency make it STAND_BY
             self.robot_state = self.old_robot_state if self.emergency_cause == self.emergency_cause_ok else "EMERGENCY"
@@ -431,16 +417,18 @@ class Robot_Node:
 
     def publish_robot_state(self):
 
-        if self.robot_state != self.prev_robot_state:
-            if self.robot_state != "EMERGENCY":
-                self.old_robot_state = self.robot_state
+        if self.robot_state == self.prev_robot_state:
+            return
+        
+        if self.robot_state != "EMERGENCY":
+            self.old_robot_state = self.robot_state
 
-            if self.robot_state != "KEY_OFF": # reset the timer
-                self.init_time = rospy.Time.now().to_sec()
+        if self.robot_state != "KEY_OFF": # reset the timer
+            self.init_time = rospy.Time.now().to_sec()
 
-            print("PUBLISH robot_state: ", self.robot_state)
-            self.prev_robot_state = deepcopy(self.robot_state)
-            self._robot_state_pub.publish(self.robot_state)
+        print("robot_state: ", self.robot_state)
+        self.prev_robot_state = deepcopy(self.robot_state)
+        self._robot_state_pub.publish(self.robot_state)
 
     def publish_teleop(self):
         self.teleoperator_command = self.Robot_Control.teleop_control()
@@ -467,8 +455,35 @@ class Robot_Node:
         self.Robot_Feedback.updateDirectionLight(self.robot_steering.data)
         self.Robot_Feedback.updateDoorState()
         
+        self.battery_capacity = self.Robot_Feedback.getBatteryCapacity()
         self.robot_operational_details = self.Robot_Feedback.getRobotDetails( self.connection_quality, self.robot_state)
         self._robot_operational_details_pub.publish(self.robot_operational_details)
+    
+    def ros_nodes_check(self, robot_state):
+        # ! CAN_INTERFACE must always be running
+        # ! hdl_nodelet_manager must be running in case of mapping
+        # ! hdl_localozation must be running in case of auto-pilot
+        # ! move_base must be running in case of auto-pilot
+
+        if rospy.Time.now() - self.nodes_check_time < rospy.Duration(0.1):
+            return
+        self.nodes_check_time = rospy.Time.now()
+        
+        if "STAND_BY" or "KEY_OFF" in robot_state:
+            return
+        
+        # todo: change robot state to EMERGENCY if nodes are not running and send the emergency cause
+        # todo: retry to connect to the nodes
+        self.can_check = self.check_node("/can_node")
+        self.websocket = self.check_node("/rosbridge_websocket")
+        
+        if robot_state == "MAPPING" and self.mapping:
+            self.hdl_nodelet_manager_check = self.check_node("/hdl_nodelet_manager")
+            
+        elif "MISSION" in robot_state:
+            self.hdl_localization_check = self.check_node("/hdl_localization")
+            self.move_base_check = self.check_node("/move_base")
+        
         
     def update(self):
 
@@ -480,11 +495,12 @@ class Robot_Node:
             self.publish_robot_operational_details()
             self.prev_publish_time = rospy.Time.now()
             
-
+        
+        self.ros_nodes_check(self.robot_state)
+            
         # ! for mapping it should be in the loop not in the service callback
         self.launch_map_server()
             
-        self.battery_capacity = self.Robot_Feedback.getBatteryCapacity()
         self.publish_teleop()
 
         # print("looping")
