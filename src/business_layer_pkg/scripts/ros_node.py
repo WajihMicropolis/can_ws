@@ -142,6 +142,7 @@ class Robot_Node:
         self.start_mapping_srv = False
         self.mapping = False
         
+        self.check_time = rospy.Time.now()
         self.pod_doors_control = {
             "top":2,
             "front_right": 0,
@@ -369,10 +370,12 @@ class Robot_Node:
 
         if rospy.Time.now() - self.prev_health_check_time < rospy.Duration(self.check_time):
             return
+        print("duration: ", (rospy.Time.now() - self.prev_health_check_time).to_sec())
+        
         self.prev_health_check_time = rospy.Time.now()
-
         status_checks = {
-            "CONNECTION_QUALITY": lambda: self.connection_quality >= 70,
+            "CONNECTION_QUALITY": False,
+            # "CONNECTION_QUALITY": lambda: self.connection_quality >= 70,
             "HARDWARE": lambda: self.steering_health_check
             and self.braking_health_check,
             "BATTERY_LEVEL": lambda: self.battery_capacity > 30,
@@ -384,34 +387,35 @@ class Robot_Node:
             "BATTERY_LEVEL": "low battery",
             "SENSOR": "lidar not working",
         }
-        if self.check_index < len(self._modeToBeChecked):
-            check = self._modeToBeChecked[self.check_index]
-            if self.status_index < (len(_modeCheckStatus) -1): # start, pending, succeeded or failed
-
-                if self.status_index == 2:
-                    status = (_modeCheckStatus[2] if status_checks[check] else _modeCheckStatus[3])
-
-                    if status == _modeCheckStatus[3]:
-                        status += f":{error_messages[check]}"
-                    else:
-                        self.health_check_success += 1
-                else:
-                    status = _modeCheckStatus[self.status_index]
-                
-                self._health_check_pub.publish(f"{check}:{status}")
-                self.status_index += 1
-            else:
-                self.status_index = 0
-                self.check_index += 1
-                
-        else:
-            if self.health_check_success == len(self._modeToBeChecked):
-                print("health check success")
-                self.robot_state = self.next_mode
-            self.check_index = 0
-            self.status_index = 0
-            self.health_check_success = 0
+        if self.check_index == len(self._modeToBeChecked):
+            print("self.health_check_success: ", self.health_check_success)
+            print("len(self._modeToBeChecked): ", len(self._modeToBeChecked))
+            self.robot_state = self.next_mode if self.health_check_success == len(self._modeToBeChecked) else self.robot_state
+            self.check_index, self.status_index, self.health_check_success = 0, 0, 0
+            
             self._modeToBeChecked = []
+            return
+        
+        check = self._modeToBeChecked[self.check_index] #? CONNECTION_QUALITY, HARDWARE, BATTERY_LEVEL, SENSOR
+        
+        if self.status_index == (len(_modeCheckStatus) -1): #? START, PENDING, SUCCEEDED or FAILED
+            self.status_index = 0
+            self.check_index += 1
+            return
+            
+        if self.status_index == 2 and not status_checks[check]: 
+            status = _modeCheckStatus[3]
+            status += f":{error_messages[check]}"
+            
+        else: 
+            status = _modeCheckStatus[self.status_index]
+            self.health_check_success += 1
+        
+        self._health_check_pub.publish(f"{check}:{status}")
+        self.status_index += 1
+
+                
+        
         
     def publish_doors_control(self):
         
@@ -523,7 +527,7 @@ class Robot_Node:
         
         
     def update(self):
-
+        
         self.publish_robot_state()
         self.publish_health_check()
         self.publish_emergency_cause()
@@ -532,7 +536,6 @@ class Robot_Node:
             self.publish_robot_operational_details()
             self.prev_publish_time = rospy.Time.now()
             
-        
         self.ros_nodes_check(self.robot_state)
             
         # ! for mapping it should be in the loop not in the service callback

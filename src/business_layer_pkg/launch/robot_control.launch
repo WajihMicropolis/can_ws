@@ -6,6 +6,9 @@
 		<param name="autonomous_cmd_topic" value="autonomous_cmd_vel" />
 	</node>
 
+	<node name="robot_connection" pkg="business_layer_pkg" type="robot_connection.py"/>
+	
+
 	<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
 		<arg name="port" value="9990" />
 	</include>

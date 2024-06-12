@@ -2,13 +2,10 @@
 from copy import deepcopy
 import rospy
 import json
-import subprocess
-import re
 import datetime
 
 from std_msgs.msg import String
-from std_msgs.msg import Float32, Int16MultiArray, Bool, Float32MultiArray, Int8
-from geometry_msgs.msg import Twist
+from std_msgs.msg import Float32, Int16MultiArray, Bool, Float32MultiArray
 from sensor_msgs.msg import BatteryState, Imu
 from json_data import data
 
@@ -91,6 +88,7 @@ class RobotFeedback:
         self.brake_state_sub            = rospy.Subscriber("feedback/brake_state",   String, self.brake_state_cb)
         self.steering_health_check_sub  = rospy.Subscriber("feedback/steering_health_check",  Bool,  lambda msg : setattr(self, 'steering_health_check', msg.data))
         self.braking_health_check_sub   = rospy.Subscriber("feedback/braking_health_check",   Bool, lambda msg: setattr(self, 'braking_health_check', msg.data))
+        self.connection_quality_sub     = rospy.Subscriber("/robot_connection",   Float32, lambda msg: setattr(self, 'connection_quality', msg.data))
 
 
 # ! CALLBACKS
@@ -264,59 +262,6 @@ class RobotFeedback:
             data['lightning']['left'] = 0
             data['lightning']['right'] = not data['lightning']['right']
         
-        
-
-    def ping_host(self,ip, count=1):
-        try:
-            # Run the ping command
-            output = subprocess.check_output(['ping', '-c', str(count), ip], universal_newlines=True)
-            
-            # Parse the output
-            # Extract the average round-trip time (RTT)
-            rtt_match = re.search(r'rtt min/avg/max/mdev = .*?/([0-9.]+)/', output)
-            avg_rtt = float(rtt_match.group(1)) if rtt_match else None
-            
-            # Extract packet loss percentage
-            loss_match = re.search(r'(\d+)% packet loss', output)
-            packet_loss = int(loss_match.group(1)) if loss_match else None
-            
-            return avg_rtt, packet_loss
-
-        except subprocess.CalledProcessError as e:
-            print("Failed to ping host:", e)
-            return None, None
-    
-    def calculate_connection_quality(self,avg_rtt, packet_loss):
-        # Initial connection quality percentage
-        quality = 100
-
-        # Decrease quality based on packet loss
-        if packet_loss:
-            quality -= packet_loss * 1.5  # Packet loss has a significant impact
-
-        # Decrease quality based on RTT
-        if avg_rtt:
-            if avg_rtt < 100:
-                quality -= avg_rtt * 0.1  # Minor impact for low RTT
-            elif avg_rtt < 300:
-                quality -= avg_rtt * 0.2  # Moderate impact for medium RTT
-            else:
-                quality -= avg_rtt * 0.5  # High impact for high RTT
-
-        # Ensure quality is within 0-100 range
-        quality = max(0, min(100, quality))
-
-        return quality
-
-    def getConnectionQuality(self):
-        avg_rtt, packet_loss = self.ping_host(self.ip)
-        if avg_rtt is not None and packet_loss is not None:
-            # print(f"Average RTT: {avg_rtt} ms")
-            # print(f"Packet Loss: {packet_loss}%")
-            connection = self.calculate_connection_quality(avg_rtt, packet_loss)
-            return connection
-        return 0
-
     def getEmergencyCause(self):
         return self.emergency_cause_msg.data
 
@@ -338,7 +283,7 @@ class RobotFeedback:
         return time_str
     
     def getRobotDetails(self, connection_quality,robot_state):
-        connection_quality = self.getConnectionQuality()
+        connection_quality = self.connection_quality
         
         data['duration']['elapsed'] = self.update_elapsed_time(robot_state)
         data['timestamp'] = rospy.get_time()
