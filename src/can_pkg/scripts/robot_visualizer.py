@@ -4,6 +4,7 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 from std_msgs.msg import Int16MultiArray, String, Float32, Bool
 from sensor_msgs.msg import BatteryState
 import rospy
+import rospkg
 from visualizer_V3 import Ui_Dialog  # Import the auto-generated UI class
 
 class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
@@ -11,8 +12,25 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         super().__init__()
         self.setupUi(self)
         rospy.init_node('feedback_visualizer_node', anonymous=True)
+        pkg = rospkg.RosPack()
         
         self.battery = BatteryState()
+        # Variables
+        self.motors_speed = Int16MultiArray()
+        self.steering_angle = Int16MultiArray()
+        self.brake_percentage = Int16MultiArray()
+        self.ultrasonic = Int16MultiArray()
+        self.steer_error = ""
+        self.brake_error = ""
+        self.robot_velocity = Float32()
+        self.robot_steering = Float32()
+        self.emergency_brake = Bool()
+        self.robot_state = ""
+        self.driving_HC = Bool()
+        self.driving_HC.data = True
+        self.steering_HC = Bool()
+        self.braking_HC = Bool()
+        self.robot_connection = 100
         
         # Subscribers
         self.motor_speed_sub        = rospy.Subscriber('feedback/motors_speed', Int16MultiArray, self.motor_speed_cb)
@@ -27,26 +45,15 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         self.brake_state_sub        = rospy.Subscriber('feedback/brake_state', String, self.brake_state_cb)
         self.robot_velocity_sub     = rospy.Subscriber('robot/velocity', Float32, self.robot_velocity_cb)
         self.robot_steering_sub     = rospy.Subscriber('robot/steering', Float32, self.robot_steering_cb)
+        self.robot_connection_sub   = rospy.Subscriber('robot_connection', Float32, lambda msg : setattr(self, 'robot_connection', msg.data))
         self.robot_state_sub        = rospy.Subscriber('robot/state', String, self.robot_state_cb)
         self.battery_sub            = rospy.Subscriber("feedback/battery",BatteryState, lambda msg : setattr(self, 'battery', msg))
 
-        # Variables
-        self.motors_speed = Int16MultiArray()
-        self.steering_angle = Int16MultiArray()
-        self.brake_percentage = Int16MultiArray()
-        self.ultrasonic = Int16MultiArray()
-        self.steer_error = ""
-        self.brake_error = ""
-        self.robot_velocity = Float32()
-        self.robot_steering = Float32()
-        self.emergency_brake = Bool()
-        self.robot_state = String()
-        self.driving_HC = Bool()
-        self.steering_HC = Bool()
-        self.braking_HC = Bool()
+        
         
         # Image paths
-        package_path = "/home/maya/can_ws/src/can_pkg/images"
+        can_pkg_path = pkg.get_path("can_pkg")
+        package_path = f"{can_pkg_path}/images"
         self.image_paths = {
             "main_picture": package_path + "/M2_robot.png",
             "speed_logo": package_path + "/speed_visualizer.png",
@@ -105,25 +112,25 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         self.brake_error = msg.data.split(":")
         
     def robot_velocity_cb(self, msg: Float32):
-        self.robot_velocity = msg.data
+        self.robot_velocity.data = msg.data
         
     def robot_steering_cb(self, msg: Float32):
-        self.robot_steering = msg.data
+        self.robot_steering.data = msg.data
         
     def emergency_brake_cb(self, msg:Bool):
-        self.emergency_brake = msg.data
+        self.emergency_brake.data = msg.data
         
     def robot_state_cb(self, msg: String):
         self.robot_state = msg.data
         
     def driving_HC_cb(self, msg: Bool):
-        self.driving_HC = msg.data
+        self.driving_HC.data = msg.data
         
     def steering_HC_cb(self, msg: Bool):
-        self.steering_HC = msg.data
+        self.steering_HC.data = msg.data
         
     def braking_HC_cb(self, msg: Bool):
-        self.braking_HC = msg.data
+        self.braking_HC.data = msg.data
         
         
     def set_images(self):
@@ -163,6 +170,7 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         self.connection_pic.setPixmap(QtGui.QPixmap(self.image_paths["connection_80_100"]))
 
     def update_labels(self):
+        print("robot connection: ", self.robot_connection)
         if self.motors_speed:
             self.FR_speed_label.setText(f"{self.motors_speed[0]} rpm")
             self.BR_speed_label.setText(f"{self.motors_speed[1]} rpm")
@@ -204,43 +212,55 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         if self.robot_state:
             self.robot_state_label.setText(f"Robot state: {self.robot_state}")
         
-        if self.robot_velocity:
-            self.control_speed_label.setText(f"{self.robot_velocity} rpm")
+        self.control_speed_label.setText(f"{self.robot_velocity.data} rpm")
             
-        if self.robot_steering:
-            self.control_steering_label.setText(f"{self.robot_steering}°")
+        self.control_steering_label.setText(f"{self.robot_steering.data}°")
             
-        if self.emergency_brake:
-            self.control_break_label.setText("⚠")
+        if self.emergency_brake.data:
+            self.control_break_label.setText("True")
             self.control_break_label.setStyleSheet("color: red")
             
-        if not self.emergency_brake:
-            self.control_break_label.setText("☑")
-            self.control_break_label.setStyleSheet("color: green")
+        if not self.emergency_brake.data:
+            self.control_break_label.setText("False")
+            self.control_break_label.setStyleSheet("color: white")
             
-        if self.driving_HC:
+        if self.driving_HC.data:
             self.health_check_drive_label.setText("☑")
             self.health_check_drive_label.setStyleSheet("color: green")
             
-        if not self.driving_HC:
+        if not self.driving_HC.data:
             self.health_check_drive_label.setText("☒")
             self.health_check_drive_label.setStyleSheet("color: red")
                             
-        if self.steering_HC:
+        if self.steering_HC.data:
             self.health_check_steer_label.setText("☑")
             self.health_check_steer_label.setStyleSheet("color: green")
             
-        if not self.steering_HC:
+        if not self.steering_HC.data:
             self.health_check_steer_label.setText("☒")
             self.health_check_steer_label.setStyleSheet("color: red")
             
-        # if self.braking_HC:
-        #     self.health_check_brake_label.setText("☑")
-        #     self.health_check_brake_label.setStyleSheet("color: green")
+        if self.braking_HC.data:
+            self.health_check_brake_label.setText("☑")
+            self.health_check_brake_label.setStyleSheet("color: green")
             
-        # if not self.braking_HC:
-        #     self.health_check_brake_label.setText("☒")
-        #     self.health_check_brake_label.setStyleSheet("color: red")
+        if not self.braking_HC.data:
+            self.health_check_brake_label.setText("☒")
+            self.health_check_brake_label.setStyleSheet("color: red")
+        
+        self.robot_connection = int(self.robot_connection)
+        self.connection_label.setText(f"{self.robot_connection} %")
+        if self.robot_connection <=20:
+            self.connection_pic.setPixmap(QtGui.QPixmap(self.image_paths["connection_0_20"]))
+        elif self.robot_connection <=40:
+            self.connection_pic.setPixmap(QtGui.QPixmap(self.image_paths["connection_20_40"]))
+        elif self.robot_connection <=60:
+            self.connection_pic.setPixmap(QtGui.QPixmap(self.image_paths["connection_40_60"]))
+        elif self.robot_connection <=80:
+            self.connection_pic.setPixmap(QtGui.QPixmap(self.image_paths["connection_60_80"]))
+        elif self.robot_connection <=100:
+            self.connection_pic.setPixmap(QtGui.QPixmap(self.image_paths["connection_80_100"]))
+
             
             
         if self.battery:
@@ -260,7 +280,7 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
                                                             background-color: red;
                                                         }
                                                         """)
-            elif (self.battery.percentage >= 60):
+            elif (self.battery.percentage >= 50):
                 self.battery_progressbar.setStyleSheet("""
                                                         QProgressBar{
                                                             border: 2px solid grey;

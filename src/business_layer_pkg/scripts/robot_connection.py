@@ -70,7 +70,8 @@ if __name__ == "__main__":
         rospy.init_node('robot_connection', anonymous=True)
         connection_pub = rospy.Publisher('robot_connection', Float32, queue_size=1, latch=True)
         
-        ip = get_public_ip()
+        # ip = get_public_ip()
+        ip = "94.206.14.42"
         connection = Float32()
         r = rospy.Rate(50)
         while not rospy.is_shutdown():
