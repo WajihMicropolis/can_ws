@@ -93,11 +93,13 @@ class Robot_Node:
         self.robot_velocity_rpm             = Float32()
         self.robot_steering                 = Float32()
         self.robot_emergency_brake          = Bool()
+        self.prev_robot_emergency_brake     = Bool()
         self.robot_operational_details      = String()
         self.prev_robot_operational_details = String()
         self.door_control                   = Int8MultiArray()
         self.prev_door_control              = Int8MultiArray()
         
+        self.prev_robot_emergency_brake.data = False
 
         self.robot_state = "STAND_BY"
         self.next_mode   = deepcopy(self.robot_state)
@@ -142,7 +144,6 @@ class Robot_Node:
         self.start_mapping_srv = False
         self.mapping = False
         
-        self.check_time = rospy.Time.now()
         self.pod_doors_control = {
             "top":2,
             "front_right": 0,
@@ -199,6 +200,19 @@ class Robot_Node:
             self._modeToBeChecked.append(_healthCheckArray[4])
 
         print("mode to be checked: ", self._modeToBeChecked)
+        self.status_checks = {
+            "CONNECTION_QUALITY": lambda: self.connection_quality >= 70,
+            "HARDWARE": lambda: self.steering_health_check
+            and self.braking_health_check,
+            "BATTERY_LEVEL": lambda: self.battery_capacity > 30,
+            "SENSOR": lambda: self.pcl_rate > 0,
+        }
+        self.error_messages = {
+            "CONNECTION_QUALITY": "connection error",
+            "HARDWARE": "steering error" if not self.steering_health_check else "brake error" if not self.braking_health_check else "hardware error",
+            "BATTERY_LEVEL": "low battery",
+            "SENSOR": "lidar not working",
+        }
         return health_checkResponse(checks=self._modeToBeChecked)
 
     def get_public_ip(self):
@@ -370,27 +384,11 @@ class Robot_Node:
 
         if rospy.Time.now() - self.prev_health_check_time < rospy.Duration(self.check_time):
             return
-        print("duration: ", (rospy.Time.now() - self.prev_health_check_time).to_sec())
-        
         self.prev_health_check_time = rospy.Time.now()
-        status_checks = {
-            "CONNECTION_QUALITY": False,
-            # "CONNECTION_QUALITY": lambda: self.connection_quality >= 70,
-            "HARDWARE": lambda: self.steering_health_check
-            and self.braking_health_check,
-            "BATTERY_LEVEL": lambda: self.battery_capacity > 30,
-            "SENSOR": lambda: self.pcl_rate > 0,
-        }
-        error_messages = {
-            "CONNECTION_QUALITY": "connection error",
-            "HARDWARE": "steering error" if not self.steering_health_check else "brake error" if not self.braking_health_check else "hardware error",
-            "BATTERY_LEVEL": "low battery",
-            "SENSOR": "lidar not working",
-        }
-        if self.check_index == len(self._modeToBeChecked):
-            print("self.health_check_success: ", self.health_check_success)
-            print("len(self._modeToBeChecked): ", len(self._modeToBeChecked))
-            self.robot_state = self.next_mode if self.health_check_success == len(self._modeToBeChecked) else self.robot_state
+        
+
+        if self.check_index == len(self._modeToBeChecked): #? When all the checks are done
+            self.robot_state = self.next_mode if self.health_check_success == (len(self._modeToBeChecked)*3) else self.robot_state
             self.check_index, self.status_index, self.health_check_success = 0, 0, 0
             
             self._modeToBeChecked = []
@@ -403,20 +401,18 @@ class Robot_Node:
             self.check_index += 1
             return
             
-        if self.status_index == 2 and not status_checks[check]: 
-            status = _modeCheckStatus[3]
-            status += f":{error_messages[check]}"
-            
-        else: 
-            status = _modeCheckStatus[self.status_index]
-            self.health_check_success += 1
+        status = _modeCheckStatus[self.status_index]
+        self.health_check_success += 1
         
+        if self.status_index == 2 and not self.status_checks[check]: #? in case of error in the check change the status to FAILED 
+            status = _modeCheckStatus[3]
+            status += f":{self.error_messages[check]}"
+            self.health_check_success -=1
+            
         self._health_check_pub.publish(f"{check}:{status}")
         self.status_index += 1
 
                 
-        
-        
     def publish_doors_control(self):
         
         if self.door_control.data != self.prev_door_control.data:
@@ -478,7 +474,10 @@ class Robot_Node:
         self.tele_operator_pub.     publish(self.teleoperator_command)
         self.velocity_pub.          publish(self.robot_velocity_rpm)
         self.steering_pub.          publish(self.robot_steering)
-        self.emergency_brake_pub.   publish(self.robot_emergency_brake)
+        
+        if self.prev_robot_emergency_brake != self.robot_emergency_brake:
+            self.emergency_brake_pub.   publish(self.robot_emergency_brake)
+            self.prev_robot_emergency_brake = deepcopy(self.robot_emergency_brake)
         
         self.publish_doors_control()
 
@@ -536,25 +535,22 @@ class Robot_Node:
             self.publish_robot_operational_details()
             self.prev_publish_time = rospy.Time.now()
             
-        self.ros_nodes_check(self.robot_state)
+        # self.ros_nodes_check(self.robot_state)
             
         # ! for mapping it should be in the loop not in the service callback
         self.launch_map_server()
             
         self.publish_teleop()
 
-        # print("looping")
-        
 
 if __name__ == "__main__":
     try:
         robot = Robot_Node()
-
+        rate = rospy.Rate(100)
         while not rospy.is_shutdown():
             robot.update()
-            # robot.keyboard_control(_print=True)
-            # robot.priority_control()
-            rospy.sleep(0.03)
+
+            rate.sleep()
 
     except rospy.ROSInterruptException:
         pass
