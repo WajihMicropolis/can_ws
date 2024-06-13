@@ -3,3 +3,5 @@ build
 devel
 __pycache__
 *.pyc
+.catkin_workspace
+*.pcd
