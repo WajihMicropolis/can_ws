@@ -46,7 +46,7 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         self.robot_velocity_sub     = rospy.Subscriber('robot/velocity', Float32, self.robot_velocity_cb)
         self.robot_steering_sub     = rospy.Subscriber('robot/steering', Float32, self.robot_steering_cb)
         self.robot_connection_sub   = rospy.Subscriber('robot_connection', Float32, lambda msg : setattr(self, 'robot_connection', msg.data))
-        self.robot_state_sub        = rospy.Subscriber('robot/state', String, self.robot_state_cb)
+        self.robot_state_sub        = rospy.Subscriber('robot_state', String, self.robot_state_cb)
         self.battery_sub            = rospy.Subscriber("feedback/battery",BatteryState, lambda msg : setattr(self, 'battery', msg))
 
         

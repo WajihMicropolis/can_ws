@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+
+   <arg name="pcl_map" default="/hdl_graph_slam/map_points"/>
+   <arg name="grid_map" default="map"/>
+   
+   <node pkg="point_cloud_to_occupancy_grid" type="map3d_to_map2d" name="point_cloud_to_occupancy_grid" output="screen">
+      <param name="input_pcl_topic"             value="$(arg pcl_map)"  />
+      <param name="output_occupancy_grid_topic" value="$(arg grid_map)" />
+   </node>
+
+</launch>
