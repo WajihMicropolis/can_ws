@@ -16,10 +16,10 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         
         self.battery = BatteryState()
         # Variables
-        self.motors_speed = Int16MultiArray()
-        self.steering_angle = Int16MultiArray()
-        self.brake_percentage = Int16MultiArray()
-        self.ultrasonic = Int16MultiArray()
+        self.motors_speed = None
+        self.steering_angle = None
+        self.brake_percentage = None
+        self.ultrasonic = None
         self.steer_error = ""
         self.brake_error = ""
         self.robot_velocity = Float32()
