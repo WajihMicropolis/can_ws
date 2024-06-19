@@ -5,6 +5,8 @@ from copy import deepcopy
 import subprocess
 
 import subprocess
+
+from sympy import false, true
 import rospy
 
 import roslaunch
@@ -83,6 +85,7 @@ class Robot_Node:
         self._streams_srv       = rospy.Service("streams_ids", Trigger, self.req_streames_srv)
         self._start_map_srv     = rospy.Service("start_map_srv", Trigger, self.start_map_srv)
         self._end_map_srv       = rospy.Service("end_map_srv", end_map, self.end_map_srv)
+        self.retry_save_map     = rospy.Service("retry_save_map_srv", Trigger, self.retry_save_map_srv)
         self._save_map_srv      = rospy.ServiceProxy("/hdl_graph_slam/save_map", SaveMap)
 
         #! variables
@@ -163,6 +166,9 @@ class Robot_Node:
         else:
             self.pcl_rate = 0
        
+    def retry_save_map_srv(self,req):
+        
+        pass
     def get_param(self, param_name):
         if not rospy.has_param(param_name):
             rospy.logerr(f"Parameter '{param_name}' not found")
@@ -257,11 +263,7 @@ class Robot_Node:
         self.start_mapping_srv = True
         return TriggerResponse(success=True, message="map started")
 
-    def launch_map_server(self):
-        if not self.start_mapping_srv:
-            return
-        pkg_name = "hdl_graph_slam"
-        launch_file = "hdl_graph_slam.launch"
+    def launch_pkg(self, pkg_name, launch_file):
         
         uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
         roslaunch.configure_logging(uuid)
@@ -271,44 +273,84 @@ class Robot_Node:
 
         launch = roslaunch.parent.ROSLaunchParent(uuid, launch_files)
         launch.start()
+        return launch
+    
+    def run_node(self, pkg_name, executable, args = ''):
+
+        node = roslaunch.core.Node(pkg_name, executable,args=args )
+
+        launch = roslaunch.scriptapi.ROSLaunch()
+        launch.start()
+
+        process = launch.launch(node)
+        print("process: ",process)
+    
+    def kill_node(self, node_name):
+        kill_node = rosnode.kill_nodes([node_name])
+        print("kill node: ", kill_node)
+        if kill_node[0] and not kill_node[1]:
+            rospy.loginfo(f"{node_name} Node killed successfully")
+            return True
+        
+        return False
+    
+    def launch_map_server(self):
+        if not self.start_mapping_srv:
+            return
+        hdl_pkg_name = "hdl_graph_slam"
+        hdl_launch_file = "hdl_graph_slam.launch"
+        self.launch_pkg(hdl_pkg_name, hdl_launch_file)
+        
+        pcd_pkg_name = "point_cloud_to_occupancy_grid"
+        pcd_launch_file = "pcd_to_occupancy_grid.launch"
+        self.launch_pkg(pcd_pkg_name, pcd_launch_file)
         
         self.start_mapping_srv = False
         self.mapping = True
         
     def end_map_srv(self,req: end_mapRequest):
         if not self.mapping:
-            return end_mapResponse(success=False, status_message="map not started")
+            return end_mapResponse(success=False, message="map not started")
         
         print("----------save map---------")
         print("req save map: ",req.save_map)
         print("req map name: ",req.map_name)
         self.map_name = req.map_name
-        # todo : save the map and send it to the server
         
         if req.save_map:
             if not req.map_name:
-                return end_mapResponse(success=False, status_message="map name is required")
+                return end_mapResponse(success=False, message="map name is required")
             print("save map")
             rospy.wait_for_service('/hdl_graph_slam/save_map')
             print("service ready")
+            save_maps_destination = "/home/microspot/can_ws"
             map_req = SaveMapRequest()
             map_req.utm = False
             map_req.resolution = 0.1
-            map_req.destination = f"/home/microspot/can_ws/{req.map_name}.pcd"
+            map_req.destination = f"{save_maps_destination}/{req.map_name}.pcd"
             map_result = self._save_map_srv(map_req)
             print("map_result: ", map_result)
             
-        kill_node = rosnode.kill_nodes(['/hdl_nodelet_manager'])
-        
-        print("kill node: ", kill_node)
-        #     return
+            self.run_node("map_server","map_saver",f"-f {save_maps_destination}/map")
+            # todo save map server
+            
+            
         self.mapping = False
-        if kill_node[0] and not kill_node[1]:
-            rospy.loginfo("Node killed successfully")
-            return end_mapResponse(success=True, status_message="mapping node ended")
         
-        rospy.logerr("Node not killed successfully")
-        return end_mapResponse(success=False, status_message="mapping node not ended")
+        pcd_to_grid_kill_node = self.kill_node("/point_cloud_to_occupancy_grid")
+        hdl_kill_node = self.kill_node("/hdl_nodelet_manager")
+        
+        if not pcd_to_grid_kill_node:
+            rospy.logerr("point_cloud_to_occupancy_grid not killed")
+            return end_mapResponse(success=False, message="pcd_to_grid_kill_node not ended")
+        
+        if not hdl_kill_node:
+            rospy.logerr("hdl_nodelet_manager not killed")
+            return end_mapResponse(success=False, message="hdl_kill_node not ended")
+        
+        rospy.loginfo("Nodes killed successfully")
+        return end_mapResponse(success=True, message="mapping node ended")
+        
 
     def check_node(self,node_name):
         node_ping = rosnode.rosnode_ping(node_name, 1)
@@ -497,8 +539,6 @@ class Robot_Node:
     def ros_nodes_check(self, robot_state):
         # ! CAN_INTERFACE must always be running
         # ! WebSocket must always be running
-        # ! hdl_nodelet_manager must be running in case of mapping
-        # ! hdl_localozation must be running in case of auto-pilot
         # ! move_base must be running in case of auto-pilot
         if rospy.Time.now() - self.nodes_check_time < rospy.Duration(0.1):
             return

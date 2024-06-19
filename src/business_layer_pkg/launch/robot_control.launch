@@ -8,10 +8,10 @@
 
 	<node name="robot_connection" pkg="business_layer_pkg" type="robot_connection.py"/>
 	
-	<include file="$(find point_cloud_to_occupancy_grid)/launch/pcd_to_occupancy_grid.launch">
+	<!-- <include file="$(find point_cloud_to_occupancy_grid)/launch/pcd_to_occupancy_grid.launch">
 		<arg name="pcl_map" value="/hdl_graph_slam/map_points"/>
 		<arg name="grid_map" value="map"/>
-	</include>
+	</include> -->
 
 	<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
 		<arg name="port" value="9990" />

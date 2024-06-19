@@ -79,7 +79,18 @@ def timer_callback(event):
         rospy.loginfo("Publish rate: {:.2f} Hz".format(rate))
     else:
         rospy.loginfo("No messages received.")
-        
+
+def run_node():
+
+    package = 'rqt_robot_steering'
+    executable = 'rqt_robot_steering'
+    node = roslaunch.core.Node(package, executable)
+
+    launch = roslaunch.scriptapi.ROSLaunch()
+    launch.start()
+
+    launch.launch(node)
+      
 if __name__ == '__main__':
     rospy.init_node('launch_node', anonymous=True)
     # Subscribe to the topic and set the callback to rt.callback_hz
@@ -89,7 +100,7 @@ if __name__ == '__main__':
     _save_map_srv       = rospy.ServiceProxy("/hdl_graph_slam/save_map", SaveMap)
     
     
-    
+    run_node()
     service = rospy.Service('launch', Trigger, service_callback)
     terminate = rospy.Service('terminate', Trigger, terminate_service_callback)
     while not rospy.is_shutdown():
