@@ -2,6 +2,7 @@
 
 import json
 from copy import deepcopy
+from re import S
 import subprocess
 
 import subprocess
@@ -15,6 +16,7 @@ import rosnode
 import rostopic
 
 from std_msgs.msg import Float32, Int8MultiArray, Bool, String, Int32
+from business_layer_pkg.msg import StringArray
 from std_srvs.srv import Trigger, TriggerResponse
 from business_layer_pkg.srv import end_map, end_mapRequest, end_mapResponse
 
@@ -60,7 +62,8 @@ class Robot_Node:
         #! publishers to the Teleoperation software
         self._robot_state_pub               = rospy.Publisher("robot_state", String, queue_size=1, latch=True)
         self._health_check_pub              = rospy.Publisher("health_check", String, queue_size=1, latch=True)
-        self._emetgency_cause_pub           = rospy.Publisher("emergency_cause", String, queue_size=1, latch=True)
+        self._emergency_cause_pub           = rospy.Publisher("emergency_cause", String, queue_size=1, latch=True)
+        self._emergency_cause_array_pub     = rospy.Publisher("emergency_cause_array", StringArray, queue_size=1, latch=True)
         self._robot_operational_details_pub = rospy.Publisher("robot_operational_details", String, queue_size=1, latch=True)
         #! subscribers from the Teleoperation software
         self._gear_sub           = rospy.Subscriber("gear", String, self.gear_cb)
@@ -136,6 +139,8 @@ class Robot_Node:
         self.prev_emergency_cause = deepcopy(self.emergency_cause)
         self.emergency_cause_ok = deepcopy(self.emergency_cause)
         
+        self.emergency_cause_array = []
+        self.prev_emergency_cause_array = []
         
         self.emergency_check_time = 0.3
         self.prev_emergency_cause_time = rospy.Time.now()
@@ -478,15 +483,15 @@ class Robot_Node:
             return
         self.prev_emergency_cause_time = rospy.Time.now()
 
-        self.emergency_cause = self.Robot_Feedback.getEmergencyCause()
-
+        self.emergency_cause = self.Robot_Feedback.getEmergencyCause()     
+        
         if self.emergency_cause != self.prev_emergency_cause:
             # todo in case of no emergency make it STAND_BY
             self.robot_state = self.old_robot_state if self.emergency_cause == self.emergency_cause_ok else "EMERGENCY"
             self.prev_emergency_cause = deepcopy(self.emergency_cause)
             
             if self.emergency_cause != self.emergency_cause_ok:
-                self._emetgency_cause_pub.publish(self.emergency_cause)
+                self._emergency_cause_pub.publish(self.emergency_cause)
             # print("emergency_cause: ", self.emergency_cause)
 
     def publish_robot_state(self):
@@ -574,6 +579,11 @@ class Robot_Node:
         if rospy.Time.now() - self.prev_publish_time > rospy.Duration(0.2):
             self.publish_robot_operational_details()
             self.prev_publish_time = rospy.Time.now()
+            
+            self.emergency_cause_array = self.Robot_Feedback.getEmergencyCauseArray()
+            if self.prev_emergency_cause_array != self.emergency_cause_array:
+                self._emergency_cause_array_pub.publish(self.emergency_cause_array)
+                self.prev_emergency_cause_array = deepcopy(self.emergency_cause_array)
             
         # self.ros_nodes_check(self.robot_state)
             
