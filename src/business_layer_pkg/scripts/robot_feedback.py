@@ -8,7 +8,7 @@ import datetime
 
 from std_msgs.msg import String
 from std_msgs.msg import Float32, Int16MultiArray, Bool, Float32MultiArray
-from sensor_msgs.msg import BatteryState, Imu
+from sensor_msgs.msg import BatteryState
 from json_data import data
 
 PI = 3.14159
@@ -265,7 +265,7 @@ class RobotFeedback:
             
             for motor_side in self.emergency_causes[cause]:
                 if self.emergency_causes[cause][motor_side] != "OK":
-                    error_msg = cause + " " + "Motor" + " " + motor_side + ": " + self.emergency_causes[cause][motor_side]
+                    error_msg = motor_side + " " + cause + " " + "Motor " + self.emergency_causes[cause][motor_side].replace("MOTOR","")
                     array.append(error_msg)
 
         return array

@@ -17,16 +17,13 @@ import rostopic
 
 from std_msgs.msg import Float32, Int8MultiArray, Bool, String, Int32
 from business_layer_pkg.msg import StringArray
-from std_srvs.srv import Trigger, TriggerResponse
+from business_layer_pkg.srv import Trigger, TriggerResponse
 from business_layer_pkg.srv import end_map, end_mapRequest, end_mapResponse
-
+from business_layer_pkg.msg import data
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import PointCloud2
-from business_layer_pkg.srv import (
-    health_check,
-    health_checkRequest,
-    health_checkResponse,
-)
+
+from business_layer_pkg.srv import new_health_check, new_health_checkRequest, new_health_checkResponse
 
 from hdl_graph_slam.srv import SaveMap, SaveMapRequest
 
@@ -84,7 +81,7 @@ class Robot_Node:
         self.timer              = rospy.Timer(rospy.Duration(1), self.timer_callback)  # Check the rate every second 
 
         #! services
-        self._health_check_srv  = rospy.Service("health_check_srv", health_check, self.health_check_srv)
+        self._health_check_srv  = rospy.Service("health_check_srv", new_health_check, self.health_check_srv)
         self._streams_srv       = rospy.Service("streams_ids", Trigger, self.req_streames_srv)
         self._start_map_srv     = rospy.Service("start_map_srv", Trigger, self.start_map_srv)
         self._end_map_srv       = rospy.Service("end_map_srv", end_map, self.end_map_srv)
@@ -142,7 +139,7 @@ class Robot_Node:
         self.emergency_cause_array = []
         self.prev_emergency_cause_array = []
         
-        self.emergency_check_time = 0.3
+        self.emergency_check_time = 0.5
         self.prev_emergency_cause_time = rospy.Time.now()
 
 
@@ -163,6 +160,8 @@ class Robot_Node:
         self.publish_pulse = False
         print("Robot Node is ready, ", rospy.Time.now().to_sec())
 
+
+
         
     def timer_callback(self, event):
         hz_data = self.rt.get_hz()
@@ -182,13 +181,13 @@ class Robot_Node:
         print(f"{param_name}: {param_value}")
         return param_value
         
-    def health_check_srv(self, req: health_checkRequest):
+    def health_check_srv(self, req: new_health_checkRequest):
         self.next_mode = req.nextMode
         
         #! or self.next_mode == self.robot_state
         if self.next_mode not in _nextModeArray :
             rospy.logerr(f"Invalid : {self.next_mode}")
-            return health_checkResponse(checks=[])
+            return new_health_checkResponse(checks=[])
 
         rospy.logdebug(f"health_check_srv: {self.next_mode}")
         self._modeToBeChecked.clear()
@@ -224,7 +223,19 @@ class Robot_Node:
             "BATTERY_LEVEL": "low battery",
             "SENSOR": "lidar not working",
         }
-        return health_checkResponse(checks=self._modeToBeChecked)
+
+        checks = self._modeToBeChecked
+        # Create a dictionary with the array nested under the "checks" key
+        checks_dict = {"checks": checks}
+        checks_json = json.dumps(checks_dict)
+
+        # Print the JSON string
+        print(checks_json)
+        
+        response = new_health_checkResponse()
+        response.data = checks_json
+        response.success = True
+        return response
 
     def get_public_ip(self):
         try:
@@ -483,16 +494,17 @@ class Robot_Node:
             return
         self.prev_emergency_cause_time = rospy.Time.now()
 
-        self.emergency_cause = self.Robot_Feedback.getEmergencyCause()     
+        #? update the emergency cause array
+        self.emergency_cause_array = self.Robot_Feedback.getEmergencyCauseArray()
         
-        if self.emergency_cause != self.prev_emergency_cause:
-            # todo in case of no emergency make it STAND_BY
-            self.robot_state = self.old_robot_state if self.emergency_cause == self.emergency_cause_ok else "EMERGENCY"
-            self.prev_emergency_cause = deepcopy(self.emergency_cause)
-            
-            if self.emergency_cause != self.emergency_cause_ok:
-                self._emergency_cause_pub.publish(self.emergency_cause)
-            # print("emergency_cause: ", self.emergency_cause)
+        if self.prev_emergency_cause_array == self.emergency_cause_array:
+            return
+        
+        # todo in case of no emergency make it STAND_BY
+        self.robot_state = self.old_robot_state if not self.emergency_cause_array else "EMERGENCY"
+        
+        self._emergency_cause_array_pub.publish(self.emergency_cause_array)
+        self.prev_emergency_cause_array = deepcopy(self.emergency_cause_array)
 
     def publish_robot_state(self):
 
@@ -580,10 +592,7 @@ class Robot_Node:
             self.publish_robot_operational_details()
             self.prev_publish_time = rospy.Time.now()
             
-            self.emergency_cause_array = self.Robot_Feedback.getEmergencyCauseArray()
-            if self.prev_emergency_cause_array != self.emergency_cause_array:
-                self._emergency_cause_array_pub.publish(self.emergency_cause_array)
-                self.prev_emergency_cause_array = deepcopy(self.emergency_cause_array)
+            
             
         # self.ros_nodes_check(self.robot_state)
             

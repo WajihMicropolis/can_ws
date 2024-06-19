@@ -1,5 +1,4 @@
-bool save_map
-string map_name
+string nextMode
 ---
 string data
 bool success 

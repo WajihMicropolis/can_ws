@@ -56,6 +56,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+  data.msg
   StringArray.msg
 )
 
@@ -64,6 +65,8 @@ add_service_files(
   FILES
   health_check.srv
   end_map.srv
+  new_health_check.srv
+  Trigger.srv
 )
 
 ## Generate actions in the 'action' folder

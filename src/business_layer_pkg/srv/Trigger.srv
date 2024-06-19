@@ -1,5 +1,3 @@
-bool save_map
-string map_name
 ---
 string data
 bool success 
