@@ -177,9 +177,8 @@ class Robot_Control:
         velocity_rpm.data = cmd_vel.linear.x* 60 / (2 * PI * wheel_radius)
         steering.data = cmd_vel.angular.z
         emergency_brake.data = self.robot_emergency_brake.data
-    # def priority_control(self, teleoperator_command = Twist(), navigation_command = Twist(), cmd_vel = Twist()):
-        
-    #     pass
+
+
 if __name__ == "__main__":
     try:
         robot = Robot_Control()

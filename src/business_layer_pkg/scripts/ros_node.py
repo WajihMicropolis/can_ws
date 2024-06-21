@@ -3,9 +3,6 @@
 import json
 from copy import deepcopy
 from re import S
-import subprocess
-
-import subprocess
 
 from sympy import false, true
 import rospy
@@ -60,7 +57,7 @@ class Robot_Node:
         self._robot_state_pub               = rospy.Publisher("robot_state", String, queue_size=1, latch=True)
         self._health_check_pub              = rospy.Publisher("health_check", String, queue_size=1, latch=True)
         # self._emergency_cause_pub           = rospy.Publisher("emergency_cause", String, queue_size=1, latch=True)
-        self._emergency_cause_array_pub     = rospy.Publisher("emergency_cause_array", StringArray, queue_size=1, latch=True)
+        self._emergency_cause_array_pub     = rospy.Publisher("emergency_cause", StringArray, queue_size=1, latch=True)
         self._robot_operational_details_pub = rospy.Publisher("robot_operational_details", String, queue_size=1, latch=True)
         #! subscribers from the Teleoperation software
         self._gear_sub           = rospy.Subscriber("gear", String, self.gear_cb)
@@ -144,7 +141,7 @@ class Robot_Node:
         
         self.start_mapping_srv = False
         self.mapping = False
-        
+        self.i= 0
         self.pod_doors_control = {
             "top":2,
             "front_right": 0,
@@ -156,9 +153,32 @@ class Robot_Node:
         self.publish_pulse = False
         print("Robot Node is ready, ", rospy.Time.now().to_sec())
 
+    def get_public_ip(self):
+        try:
+            response = requests.get('https://api.ipify.org?format=json')
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            ip_info = response.json()
+            return ip_info['ip']
+        except requests.RequestException as e:
+            print(f"Error occurred: {e}")
+            return None
 
+    def map_value(self,x, a, b, c, d):
+        """
+        Maps a value x from range [a, b] to range [c, d].
 
-        
+        Parameters:
+        - x: The value to map.
+        - a: The lower bound of the original range.
+        - b: The upper bound of the original range.
+        - c: The lower bound of the new range.
+        - d: The upper bound of the new range.
+
+        Returns:
+        - The value of x mapped to the new range [c, d].
+        """
+        return float(c + (x - a) * (d - c) / (b - a))
+       
     def timer_callback(self, event):
         hz_data = self.rt.get_hz()
         if hz_data:
@@ -167,8 +187,8 @@ class Robot_Node:
             self.pcl_rate = 0
        
     def retry_save_map_srv(self,req):
-        
         pass
+    
     def get_param(self, param_name):
         if not rospy.has_param(param_name):
             rospy.logerr(f"Parameter '{param_name}' not found")
@@ -177,13 +197,46 @@ class Robot_Node:
         print(f"{param_name}: {param_value}")
         return param_value
         
+    #* Launch/Run/Kill ROS package  
+    def launch_pkg(self, pkg_name, launch_file):
+        
+        uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+        roslaunch.configure_logging(uuid)
+
+        launch_file_path = roslaunch.rlutil.resolve_launch_arguments([pkg_name,launch_file])[0]
+        launch_files = [launch_file_path]
+
+        launch = roslaunch.parent.ROSLaunchParent(uuid, launch_files)
+        launch.start()
+        return launch
+    
+    def run_node(self, pkg_name, executable, args = ''):
+
+        node = roslaunch.core.Node(pkg_name, executable,args=args )
+
+        launch = roslaunch.scriptapi.ROSLaunch()
+        launch.start()
+
+        process = launch.launch(node)
+        print("process: ",process)
+    
+    def kill_node(self, node_name):
+        kill_node = rosnode.kill_nodes([node_name])
+        print("kill node: ", kill_node)
+        if kill_node[0] and not kill_node[1]:
+            rospy.loginfo(f"{node_name} Node killed successfully")
+            return True
+        
+        return False
+    
+    #* Service Callbacks 
     def health_check_srv(self, req: new_health_checkRequest):
         self.next_mode = req.nextMode
         
         #! or self.next_mode == self.robot_state
         if self.next_mode not in _nextModeArray :
             rospy.logerr(f"Invalid : {self.next_mode}")
-            return new_health_checkResponse(checks=[])
+            return new_health_checkResponse(checks=[] , success=False, message="Invalid mode")
 
         rospy.logdebug(f"health_check_srv: {self.next_mode}")
         self._modeToBeChecked.clear()
@@ -233,16 +286,6 @@ class Robot_Node:
         response.success = True
         return response
 
-    def get_public_ip(self):
-        try:
-            response = requests.get('https://api.ipify.org?format=json')
-            response.raise_for_status()  # Raise an exception for HTTP errors
-            ip_info = response.json()
-            return ip_info['ip']
-        except requests.RequestException as e:
-            print(f"Error occurred: {e}")
-            return None
-    
     def req_streames_srv(self,req):
         public_ip = self.ip
         print("public ip: ", public_ip)
@@ -251,7 +294,7 @@ class Robot_Node:
                 { 
                     "name": "Front Camera",
                     "type": "front", 
-                    "connectionId": {
+                    "connection_id": {
                         "address": public_ip,
                         "port": 8555,
                         "stream_name": "front_camera"
@@ -260,7 +303,7 @@ class Robot_Node:
                 {
                     "name": "Back Camera", 
                     "type": "back", 
-                    "connectionId": {
+                    "connection_id": {
                         "address": public_ip,
                         "port": 8556,
                         "stream_name": "back_camera"
@@ -269,43 +312,12 @@ class Robot_Node:
             ]
         }
 
-        return TriggerResponse(success=True, message=json.dumps(streams_ids))
+        return TriggerResponse(success=True, data=json.dumps(streams_ids), message="streams ids")
 
     def start_map_srv(self,req):      
         self.start_mapping_srv = True
         return TriggerResponse(success=True, message="map started")
 
-    def launch_pkg(self, pkg_name, launch_file):
-        
-        uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-        roslaunch.configure_logging(uuid)
-
-        launch_file_path = roslaunch.rlutil.resolve_launch_arguments([pkg_name,launch_file])[0]
-        launch_files = [launch_file_path]
-
-        launch = roslaunch.parent.ROSLaunchParent(uuid, launch_files)
-        launch.start()
-        return launch
-    
-    def run_node(self, pkg_name, executable, args = ''):
-
-        node = roslaunch.core.Node(pkg_name, executable,args=args )
-
-        launch = roslaunch.scriptapi.ROSLaunch()
-        launch.start()
-
-        process = launch.launch(node)
-        print("process: ",process)
-    
-    def kill_node(self, node_name):
-        kill_node = rosnode.kill_nodes([node_name])
-        print("kill node: ", kill_node)
-        if kill_node[0] and not kill_node[1]:
-            rospy.loginfo(f"{node_name} Node killed successfully")
-            return True
-        
-        return False
-    
     def launch_map_server(self):
         if not self.start_mapping_srv:
             return
@@ -347,7 +359,6 @@ class Robot_Node:
             # todo save map server
             
             
-        self.mapping = False
         
         pcd_to_grid_kill_node = self.kill_node("/point_cloud_to_occupancy_grid")
         hdl_kill_node = self.kill_node("/hdl_nodelet_manager")
@@ -361,7 +372,15 @@ class Robot_Node:
             return end_mapResponse(success=False, message="hdl_kill_node not ended")
         
         rospy.loginfo("Nodes killed successfully")
-        return end_mapResponse(success=True, message="mapping node ended")
+        self.mapping = False
+        file_name = {
+            "files":{
+                "image_path":"/home/microspot/can_ws/map.pgm",
+                "yaml_path":"/home/microspot/can_ws/map.yaml",
+                "pcd_path":f"{save_maps_destination}/{req.map_name}.pcd"
+                }
+            }
+        return end_mapResponse(success=True, message="mapping node ended", data = json.dumps(file_name))
         
 
     def check_node(self,node_name):
@@ -369,21 +388,6 @@ class Robot_Node:
         # print("node ping: ",n)
         return node_ping
     
-    def map_value(self,x, a, b, c, d):
-        """
-        Maps a value x from range [a, b] to range [c, d].
-
-        Parameters:
-        - x: The value to map.
-        - a: The lower bound of the original range.
-        - b: The upper bound of the original range.
-        - c: The lower bound of the new range.
-        - d: The upper bound of the new range.
-
-        Returns:
-        - The value of x mapped to the new range [c, d].
-        """
-        return float(c + (x - a) * (d - c) / (b - a))
 
     def autonomous_cmd_vel_cb(self, msg: Twist):
         self.auto_pilot_command.linear = msg.linear
@@ -477,7 +481,7 @@ class Robot_Node:
             self.publish_pulse = True
             self.door_pulse_timer = rospy.Time.now()
             
-        
+        #! reset the doors control after 1 sec
         if self.publish_pulse and rospy.Time.now() - self.door_pulse_timer > rospy.Duration(1):
             
             self.pod_doors_control["front_right"],self.pod_doors_control["front_left"],self.pod_doors_control["back_right"],self.pod_doors_control["back_left"] = 0,0,0,0
@@ -491,8 +495,8 @@ class Robot_Node:
         self.prev_emergency_cause_time = rospy.Time.now()
 
         #? update the emergency cause array
-        self.emergency_cause_array = self.Robot_Feedback.getEmergencyCauseArray()
-        print("emergency_cause_array: ", self.emergency_cause_array)
+        self.emergency_cause_array = self.Robot_Feedback.getRobotEmergencyCauseArray()
+
         if self.prev_emergency_cause_array == self.emergency_cause_array:
             return
         
@@ -517,12 +521,13 @@ class Robot_Node:
         self.prev_robot_state = deepcopy(self.robot_state)
         self._robot_state_pub.publish(self.robot_state)
 
+
+    
     def publish_teleop(self):
         self.teleoperator_command = self.Robot_Control.teleop_control()
         self.robot_command = self.Robot_Control.priority_control(self.auto_pilot_command, self.teleoperator_command )
-        
         self.Robot_Control.get_robot_command(self.robot_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
-        
+
         # ! emergency brake if the connection quality is less than 70
         self.robot_emergency_brake.data = True if self.connection_quality < 70 else self.robot_emergency_brake.data
         
@@ -546,7 +551,9 @@ class Robot_Node:
         self.Robot_Feedback.updateDoorState()
         
         self.battery_capacity = self.Robot_Feedback.getBatteryCapacity()
-        self.robot_operational_details = self.Robot_Feedback.getRobotDetails( self.connection_quality, self.robot_state)
+        self.connection_quality = self.Robot_Feedback.getConnectionQuality()
+        self.robot_operational_details = self.Robot_Feedback.getRobotDetails(self.robot_state)
+        
         self._robot_operational_details_pub.publish(self.robot_operational_details)
     
     def ros_nodes_check(self, robot_state):

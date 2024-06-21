@@ -35,6 +35,7 @@ class RobotFeedback:
             "left": 0
         }
 
+        # todo add drive motors
         self.emergency_causes = {
             "Battery": "OK", # Normal
             "Steering": {
@@ -137,10 +138,10 @@ class RobotFeedback:
         if not msg.data:
             return
         split_data = msg.data.split(':')
-        data['door_state']['front_right'] = split_data[0]
-        data['door_state']['front_left'] = split_data[1]
-        data['door_state']['back_right'] = split_data[2]
-        data['door_state']['back_left'] = split_data[3]
+        data['door_state']['front_right']   = split_data[0]
+        data['door_state']['front_left']    = split_data[1]
+        data['door_state']['back_right']    = split_data[2]
+        data['door_state']['back_left']     = split_data[3]
     
     def robot_speed_cb(self, msg:Float32):
         self.robot_speed_feedback = msg.data
@@ -185,6 +186,7 @@ class RobotFeedback:
         if (self.battery_percentage < 30 and self.actual_emergency_causes["Battery"] == "LOW BATTERY") or \
             (self.battery_percentage >= 30 and self.actual_emergency_causes["Battery"] == "OK"):
                 print("Battery: ", self.actual_emergency_causes["Battery"])
+                self.state_counter["Battery"] = 0
                 return
         
         # battery state will wait for 20 callback messages before updating
@@ -193,7 +195,6 @@ class RobotFeedback:
         if self.state_counter["Battery"] > 20:
             self.actual_emergency_causes["Battery"] = "LOW BATTERY" if self.battery_percentage < 30 else "OK"
             self.state_counter["Battery"] = 0
-                
                 
     def updateDoorState(self):
         
@@ -249,7 +250,7 @@ class RobotFeedback:
             data['lightning']['left'] = 0
             data['lightning']['right'] = not data['lightning']['right']
         
-    def getEmergencyCauseArray(self):
+    def getRobotEmergencyCauseArray(self):
         # only check for changes in the emergency causes
         if self.actual_emergency_causes == self.previous_actual_emergency_causes:
             return self.emergency_causes_array
@@ -279,7 +280,7 @@ class RobotFeedback:
     
     def update_elapsed_time(self, robot_state):
         if robot_state == "KEY_OFF":
-            return
+            return "00:00:00"
         t = rospy.Time.now().to_sec()
         start_time = t - self.init_time
         start_time = round(start_time, 2)
@@ -288,12 +289,14 @@ class RobotFeedback:
         # print("time: ", time_str)
         return time_str
     
-    def getRobotDetails(self, connection_quality,robot_state):
-        connection_quality = self.connection_quality
+    def getConnectionQuality(self):
+        return self.connection_quality
+    
+    def getRobotDetails(self, robot_state):
         
         data['duration']['elapsed'] = self.update_elapsed_time(robot_state)
         data['timestamp'] = rospy.get_time()
-        data['connection_quality'] = connection_quality 
+        data['connection_quality'] = self.connection_quality 
         
         json_string = json.dumps(data)
 
