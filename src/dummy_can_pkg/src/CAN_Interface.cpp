@@ -1,4 +1,4 @@
-#include "CAN_Interface.hpp"
+#include "Dummy_CAN_Interface.hpp"
 #include <CANBus.hpp>
 static int program_running;
 int tty_fd_new;
@@ -30,17 +30,17 @@ string CAN_Interface::getSteeringError(WheelSteeringStatus &steeringError)
    string error = "";
 
    if (steer_error == 0)
-      error += "MOTOR_OVER_TEMPERATURE";
+      error += "Over Temperature";
    else if (steer_error == 1)
-      error += "MOTOR_OVER_CURRENT";
+      error += "Over Current";
    else if (steer_error == 2)
-      error += "POSITION_SENSOR_DAMAGED";
+      error += "Position Sensor Damaged";
    else if (steer_error == 3)
-      error += "POSITION_SENSOR_RESPONSE";
+      error += "Position Sensor Response Error";
    else if (steer_error == 4)
-      error += "MOTOR_ERROR";
+      error += "Error";
    else if (steer_error == 5)
-      error += "MOTOR_CONNECTION_LOSS";
+      error += "Connecton Lost";
    else
       error += "OK";
    ++steer_error > 10 ?  steer_error = 0 : steer_error;
@@ -52,13 +52,13 @@ string CAN_Interface::getBrakingError(WheelBrakingStatus &brakingError)
    string error = "";
 
    if (brake_error == 0)
-      error += "MOTOR_OVER_TEMPERATURE";
+      error += "Over Temperature";
    else if (brake_error == 1)
-      error += "MOTOR_OVER_CURRENT";
+      error += "Over Current";
    else if (brake_error == 2)
-      error += "MOTOR_ERROR";
+      error += "Error";
    else if (brake_error == 3)
-      error += "MOTOR_CONNECTION_LOSS";
+      error += "Connecton Lost";
    else
       error += "OK";
 

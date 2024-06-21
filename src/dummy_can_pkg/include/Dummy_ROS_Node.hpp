@@ -12,7 +12,7 @@
 #include "sensor_msgs/BatteryState.h"
 #include "sensor_msgs/Range.h"
 #include "business_layer_pkg/health_check.h"
-#include "CAN_Interface.hpp"
+#include "Dummy_CAN_Interface.hpp"
 
 class ROS_Node
 {

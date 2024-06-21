@@ -9,8 +9,8 @@
 #define __CANBUS_HPP__
 
 #include "stdint.h"
-#include "CAN_Interface.hpp"
-#include "PrjTypedef.hpp"
+#include "Dummy_CAN_Interface.hpp"
+#include "DummyPrjTypedef.hpp"
 #include "string.h"
 #include "stdbool.h"
 #include "math.h"

@@ -1,7 +1,7 @@
 #ifndef __DUMMY_CAN_INTERFACE_HPP__
 #define __DUMMY_CAN_INTERFACE_HPP__
 
-#include <PrjTypedef.hpp>
+#include <DummyPrjTypedef.hpp>
 // #include <CANBus.hpp>
 #include <stdlib.h>
 #include <string.h>

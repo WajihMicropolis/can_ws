@@ -561,17 +561,17 @@ string CAN_Interface::getSteeringError(WheelSteeringStatus &steeringError)
    string error = "";
 
    if (steeringError.MotorOverTemperature)
-      error += "MOTOR_OVER_TEMPERATURE";
+      error += "Over Temperature";
    else if (steeringError.MotorOverCurrent)
-      error += "MOTOR_OVER_CURRENT";
+      error += "Over Current";
    else if (steeringError.PositionSensorDemaged)
-      error += "POSITION_SENSOR_DAMAGED";
+      error += "Position Sensor Damaged";
    else if (steeringError.PositionSensorResponse)
-      error += "POSITION_SENSOR_RESPONSE";
+      error += "Position Sensor Response Error";
    else if (steeringError.MotorError)
-      error += "MOTOR_ERROR";
+      error += "Error";
    else if (steeringError.MotorConnectionLoss)
-      error += "MOTOR_CONNECTION_LOSS";
+      error += "Connecton Lost";
    else
       error += "OK";
    return error;
@@ -582,13 +582,13 @@ string CAN_Interface::getBrakingError(WheelBrakingStatus &brakingError)
    string error = "";
 
    if (brakingError.MotorOverTemperature)
-      error += "MOTOR_OVER_TEMPERATURE";
+      error += "Over Temperature";
    else if (brakingError.MotorOverCurrent)
-      error += "MOTOR_OVER_CURRENT";
+      error += "Over Current";
    else if (brakingError.MotorError)
-      error += "MOTOR_ERROR";
+      error += "Error";
    else if (brakingError.MotorConnectionLoss)
-      error += "MOTOR_CONNECTION_LOSS";
+      error += "Connecton Lost";
    else
       error += "OK";
    return error;
