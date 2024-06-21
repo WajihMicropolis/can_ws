@@ -59,7 +59,7 @@ class Robot_Node:
         #! publishers to the Teleoperation software
         self._robot_state_pub               = rospy.Publisher("robot_state", String, queue_size=1, latch=True)
         self._health_check_pub              = rospy.Publisher("health_check", String, queue_size=1, latch=True)
-        self._emergency_cause_pub           = rospy.Publisher("emergency_cause", String, queue_size=1, latch=True)
+        # self._emergency_cause_pub           = rospy.Publisher("emergency_cause", String, queue_size=1, latch=True)
         self._emergency_cause_array_pub     = rospy.Publisher("emergency_cause_array", StringArray, queue_size=1, latch=True)
         self._robot_operational_details_pub = rospy.Publisher("robot_operational_details", String, queue_size=1, latch=True)
         #! subscribers from the Teleoperation software
@@ -132,12 +132,8 @@ class Robot_Node:
         self.check_time = 0.3
         self.prev_health_check_time = rospy.Time.now()
 
-        self.emergency_cause = self.Robot_Feedback.getEmergencyCause()
-        self.prev_emergency_cause = deepcopy(self.emergency_cause)
-        self.emergency_cause_ok = deepcopy(self.emergency_cause)
-        
         self.emergency_cause_array = []
-        self.prev_emergency_cause_array = []
+        self.prev_emergency_cause_array = None
         
         self.emergency_check_time = 0.5
         self.prev_emergency_cause_time = rospy.Time.now()
@@ -496,7 +492,7 @@ class Robot_Node:
 
         #? update the emergency cause array
         self.emergency_cause_array = self.Robot_Feedback.getEmergencyCauseArray()
-        
+        print("emergency_cause_array: ", self.emergency_cause_array)
         if self.prev_emergency_cause_array == self.emergency_cause_array:
             return
         

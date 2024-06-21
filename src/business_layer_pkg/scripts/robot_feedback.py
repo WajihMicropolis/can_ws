@@ -52,12 +52,10 @@ class RobotFeedback:
         }
 
                
-        self.prev_emergency_causes = deepcopy(self.emergency_causes)
-        self.steering_state_count = 0
-        self.brake_state_count = 0
-        self.battery_state_count = 0
-        self.emergency_cause_msg = String()
-        self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
+        self.actual_emergency_causes = deepcopy(self.emergency_causes)
+        self.previous_actual_emergency_causes = deepcopy(self.emergency_causes)
+        
+        self.emergency_causes_array = []
         self.light_timer = rospy.Time.now()
         self.init_time = rospy.Time.now().to_sec()
         self.elapsed_time = "00:00:00"
@@ -65,6 +63,12 @@ class RobotFeedback:
         self.door_state = "closed"
         self.lifter_state = "closed"
         self.drone_base_state = "closed"
+        
+        self.state_counter = {
+            "Steering": 0,
+            "Brake": 0,
+            "Battery": 0
+        }
         
         self.motors_speed_sub           = rospy.Subscriber("feedback/motors_speed",   Int16MultiArray, self.motors_speed_cb)
         self.steering_angle_sub         = rospy.Subscriber("feedback/steering_angle",     Int16MultiArray, self.steering_angle_cb)
@@ -157,11 +161,11 @@ class RobotFeedback:
             return
         split_data = msg.data.split(':')
         
-        self.emergency_causes["Steering"]['Front Right']  = split_data[0].replace("_", " ")
-        self.emergency_causes["Steering"]['Front Left']   = split_data[1].replace("_", " ")
-        self.emergency_causes["Steering"]['Back Right']   = split_data[2].replace("_", " ")
-        self.emergency_causes["Steering"]['Back Left']    = split_data[3].replace("_", " ")
-        self.checkErrorState()
+        self.emergency_causes["Steering"]['Front Right']  = split_data[0]
+        self.emergency_causes["Steering"]['Front Left']   = split_data[1]
+        self.emergency_causes["Steering"]['Back Right']   = split_data[2]
+        self.emergency_causes["Steering"]['Back Left']    = split_data[3]
+        self.checkErrorState("Steering")
         
         # print("steering_state: ", self.steering_state)
             
@@ -170,23 +174,25 @@ class RobotFeedback:
             return
         
         split_data = msg.data.split(':')
-        self.emergency_causes["Brake"]['Front Right']  = split_data[0].replace("_", " ")
-        self.emergency_causes["Brake"]['Front Left']   = split_data[1].replace("_", " ")
-        self.emergency_causes["Brake"]['Back Right']   = split_data[2].replace("_", " ")
-        self.emergency_causes["Brake"]['Back Left']    = split_data[3].replace("_", " ")
-        self.checkErrorState()
+        self.emergency_causes["Brake"]['Front Right']  = split_data[0]
+        self.emergency_causes["Brake"]['Front Left']   = split_data[1]
+        self.emergency_causes["Brake"]['Back Right']   = split_data[2]
+        self.emergency_causes["Brake"]['Back Left']    = split_data[3]
+        self.checkErrorState("Brake")
 
 # ! Get and Update Data
     def checkBatteryState(self):
-        if self.battery_percentage > 30:
-            self.emergency_causes["Battery"] = "OK"
-            return
+        if (self.battery_percentage < 30 and self.actual_emergency_causes["Battery"] == "LOW BATTERY") or \
+            (self.battery_percentage >= 30 and self.actual_emergency_causes["Battery"] == "OK"):
+                print("Battery: ", self.actual_emergency_causes["Battery"])
+                return
         
-        self.battery_state_count += 1
-        if self.battery_state_count > 20 and self.emergency_causes["Battery"] == "Normal":
-            self.emergency_causes["Battery"] = "LOW BATTERY"
-            self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
-            self.battery_state_count = 0
+        # battery state will wait for 20 callback messages before updating
+        self.state_counter["Battery"] += 1
+        
+        if self.state_counter["Battery"] > 20:
+            self.actual_emergency_causes["Battery"] = "LOW BATTERY" if self.battery_percentage < 30 else "OK"
+            self.state_counter["Battery"] = 0
                 
                 
     def updateDoorState(self):
@@ -204,25 +210,16 @@ class RobotFeedback:
         elif self.door_state == "closed" and self.lifter_state == "closed" and self.drone_base_state == "closed":
             data['door_state']["top"] = "closed"
 
-    def checkErrorState(self):
+    def checkErrorState(self, motor_type):
         
-        if self.emergency_causes["Steering"] != self.prev_emergency_causes["Steering"]:
-            self.steering_state_count += 1
-            
-            if self.steering_state_count > 20:
-                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
-                self.steering_state_count = 0
-                self.prev_emergency_causes["Steering"] = deepcopy(self.emergency_causes["Steering"])
+        if self.emergency_causes[motor_type] == self.actual_emergency_causes[motor_type]:
+            return
+        self.state_counter[motor_type] += 1
+        
+        if self.state_counter[motor_type] > 10:
+            self.state_counter[motor_type] = 0
+            self.actual_emergency_causes[motor_type] = deepcopy(self.emergency_causes[motor_type])
                 
-        if self.emergency_causes["Brake"] != self.prev_emergency_causes["Brake"]:
-            self.brake_state_count += 1
-            
-            if self.brake_state_count > 20:
-                self.emergency_cause_msg.data = json.dumps(self.emergency_causes)
-                self.brake_state_count = 0
-                self.prev_emergency_causes["Brake"] = deepcopy(self.emergency_causes["Brake"])
-        
-
     def updateDriveMode(self, robot_velocity):
         self.robot_velocity = robot_velocity
 
@@ -252,24 +249,28 @@ class RobotFeedback:
             data['lightning']['left'] = 0
             data['lightning']['right'] = not data['lightning']['right']
         
-    def getEmergencyCause(self):
-        return self.emergency_cause_msg.data
-
     def getEmergencyCauseArray(self):
+        # only check for changes in the emergency causes
+        if self.actual_emergency_causes == self.previous_actual_emergency_causes:
+            return self.emergency_causes_array
+        
+        self.previous_actual_emergency_causes = deepcopy(self.actual_emergency_causes)
         array = []
-        for cause in self.emergency_causes:
+        
+        for cause in self.actual_emergency_causes:
             if cause == "Battery":
-                if self.emergency_causes[cause] == "LOW BATTERY":
-                    array.append(self.emergency_causes[cause])
+                if self.actual_emergency_causes[cause] == "LOW BATTERY":
+                    array.append(self.actual_emergency_causes[cause])
                 continue
             
-            for motor_side in self.emergency_causes[cause]:
-                if self.emergency_causes[cause][motor_side] != "OK":
-                    error_msg = motor_side + " " + cause + " " + "Motor " + self.emergency_causes[cause][motor_side].replace("MOTOR","")
+            for motor_side in self.actual_emergency_causes[cause]:
+                if self.actual_emergency_causes[cause][motor_side] != "OK":
+                    error_msg = motor_side + " " + cause + " " + "Motor " + self.actual_emergency_causes[cause][motor_side]
                     array.append(error_msg)
+                    
+        self.emergency_causes_array = array
+        return self.emergency_causes_array
 
-        return array
-    
     def getBatteryCapacity(self):
         return self.battery_percentage
 
