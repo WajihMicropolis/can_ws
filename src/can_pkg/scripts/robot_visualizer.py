@@ -6,6 +6,7 @@ from sensor_msgs.msg import BatteryState
 import rospy
 import rospkg
 from visualizer_V3 import Ui_Dialog  # Import the auto-generated UI class
+import json
 
 class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
     def __init__(self):
@@ -22,31 +23,37 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         self.ultrasonic = None
         self.steer_error = ""
         self.brake_error = ""
-        self.robot_velocity = Float32()
-        self.robot_steering = Float32()
-        self.emergency_brake = Bool()
+        self.robot_velocity = 0
+        self.robot_steering = 0
+        self.emergency_brake = False
         self.robot_state = ""
-        self.driving_HC = Bool()
-        self.driving_HC.data = True
-        self.steering_HC = Bool()
-        self.braking_HC = Bool()
+        self.driving_HC = True
+        self.steering_HC = False
+        self.braking_HC  = False
         self.robot_connection = 100
+        self.elapsed_time = "00:00:00"
+        self.driving_mode = "P"
         
         # Subscribers
-        self.motor_speed_sub        = rospy.Subscriber('feedback/motors_speed', Int16MultiArray, self.motor_speed_cb)
-        self.steering_angle_sub     = rospy.Subscriber('feedback/steering_angle', Int16MultiArray, self.steering_angle_cb)
-        self.brake_percentage_sub   = rospy.Subscriber('feedback/brake_percentage', Int16MultiArray, self.brake_percentage_cb)
-        self.ultrasonic_sub         = rospy.Subscriber('feedback/ultrasonic', Int16MultiArray, self.ultrasonic_cb)
-        self.emergency_brake_sub    = rospy.Subscriber('robot/emergency_brake', Bool, self.emergency_brake_cb)
-        self.driving_HC_sub         = rospy.Subscriber('feedback/driving_health_check', Bool, self.driving_HC_cb)
-        self.steering_HC_sub        = rospy.Subscriber('feedback/steering_health_check', Bool, self.steering_HC_cb)
-        self.braking_HC_sub         = rospy.Subscriber('feedback/braking_health_check', Bool, self.braking_HC_cb)
-        self.steering_state_sub     = rospy.Subscriber('feedback/steering_state', String, self.steering_state_cb)
-        self.brake_state_sub        = rospy.Subscriber('feedback/brake_state', String, self.brake_state_cb)
-        self.robot_velocity_sub     = rospy.Subscriber('robot/velocity', Float32, self.robot_velocity_cb)
-        self.robot_steering_sub     = rospy.Subscriber('robot/steering', Float32, self.robot_steering_cb)
+        self.motor_speed_sub        = rospy.Subscriber('feedback/motors_speed',     Int16MultiArray, lambda msg : setattr(self, 'motors_speed', msg.data))
+        self.steering_angle_sub     = rospy.Subscriber('feedback/steering_angle',   Int16MultiArray, lambda msg : setattr(self, 'steering_angle', msg.data))
+        self.brake_percentage_sub   = rospy.Subscriber('feedback/brake_percentage', Int16MultiArray, lambda msg : setattr(self, 'brake_percentage', msg.data))
+        self.ultrasonic_sub         = rospy.Subscriber('feedback/ultrasonic',       Int16MultiArray, lambda msg : setattr(self, 'ultrasonic', msg.data))
+        
+        self.emergency_brake_sub    = rospy.Subscriber('robot/emergency_brake',             Bool, lambda msg : setattr(self, 'emergency_brake', msg.data))
+        self.driving_HC_sub         = rospy.Subscriber('feedback/driving_health_check',     Bool, lambda msg : setattr(self, 'driving_HC', msg.data))
+        self.steering_HC_sub        = rospy.Subscriber('feedback/steering_health_check',    Bool, lambda msg : setattr(self, 'steering_HC', msg.data))
+        self.braking_HC_sub         = rospy.Subscriber('feedback/braking_health_check',     Bool, lambda msg : setattr(self, 'braking_HC', msg.data))
+        
+        self.robot_state_sub        = rospy.Subscriber('robot_state',               String, lambda msg : setattr(self, 'robot_state', msg.data))
+        self.steering_state_sub     = rospy.Subscriber('feedback/steering_state',   String, self.steering_state_cb)
+        self.brake_state_sub        = rospy.Subscriber('feedback/brake_state',      String, self.brake_state_cb)
+        self.robot_oper_details_sub = rospy.Subscriber('robot_operational_details', String, self.robot_operational_details_cb)
+        
+        self.robot_velocity_sub     = rospy.Subscriber('robot/velocity', Float32, lambda msg : setattr(self, 'robot_velocity', msg.data))
+        self.robot_steering_sub     = rospy.Subscriber('robot/steering', Float32, lambda msg : setattr(self, 'robot_steering', msg.data))
         self.robot_connection_sub   = rospy.Subscriber('robot_connection', Float32, lambda msg : setattr(self, 'robot_connection', msg.data))
-        self.robot_state_sub        = rospy.Subscriber('robot_state', String, self.robot_state_cb)
+        
         self.battery_sub            = rospy.Subscriber("feedback/battery",BatteryState, lambda msg : setattr(self, 'battery', msg))
 
         
@@ -93,45 +100,26 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         
         
     #*callbacks   
-    def motor_speed_cb(self, msg: Int16MultiArray):
-        self.motors_speed = msg.data
-
-    def steering_angle_cb(self, msg: Int16MultiArray):
-        self.steering_angle = msg.data
-
-    def brake_percentage_cb(self, msg: Int16MultiArray):
-        self.brake_percentage = msg.data
-    
-    def ultrasonic_cb(self, msg: Int16MultiArray):
-        self.ultrasonic = msg.data
-
     def steering_state_cb(self, msg: String):
         self.steer_error = msg.data.split(":")
 
     def brake_state_cb(self, msg: String):
         self.brake_error = msg.data.split(":")
         
-    def robot_velocity_cb(self, msg: Float32):
-        self.robot_velocity.data = msg.data
-        
-    def robot_steering_cb(self, msg: Float32):
-        self.robot_steering.data = msg.data
-        
-    def emergency_brake_cb(self, msg:Bool):
-        self.emergency_brake.data = msg.data
+
         
     def robot_state_cb(self, msg: String):
         self.robot_state = msg.data
         
-    def driving_HC_cb(self, msg: Bool):
-        self.driving_HC.data = msg.data
+    def robot_operational_details_cb(self, msg: String):
+        json_data = json.loads(msg.data)
+
+        duration = json_data["duration"]
+        self.elapsed_time = duration["elapsed"]
         
-    def steering_HC_cb(self, msg: Bool):
-        self.steering_HC.data = msg.data
-        
-    def braking_HC_cb(self, msg: Bool):
-        self.braking_HC.data = msg.data
-        
+        self.driving_mode = json_data["drivingMode"]
+        pass
+
         
     def set_images(self):
         self.picture.setPixmap(QtGui.QPixmap(self.image_paths["main_picture"]))
@@ -212,39 +200,39 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         if self.robot_state:
             self.robot_state_label.setText(f"Robot state: {self.robot_state}")
         
-        self.control_speed_label.setText(f"{self.robot_velocity.data} rpm")
+        self.control_speed_label.setText(f"{self.robot_velocity} rpm")
             
-        self.control_steering_label.setText(f"{self.robot_steering.data}°")
+        self.control_steering_label.setText(f"{self.robot_steering}°")
             
-        if self.emergency_brake.data:
+        if self.emergency_brake:
             self.control_break_label.setText("True")
             self.control_break_label.setStyleSheet("color: red")
             
-        if not self.emergency_brake.data:
+        if not self.emergency_brake:
             self.control_break_label.setText("False")
             self.control_break_label.setStyleSheet("color: white")
             
-        if self.driving_HC.data:
+        if self.driving_HC:
             self.health_check_drive_label.setText("☑")
             self.health_check_drive_label.setStyleSheet("color: green")
             
-        if not self.driving_HC.data:
+        if not self.driving_HC:
             self.health_check_drive_label.setText("☒")
             self.health_check_drive_label.setStyleSheet("color: red")
                             
-        if self.steering_HC.data:
+        if self.steering_HC:
             self.health_check_steer_label.setText("☑")
             self.health_check_steer_label.setStyleSheet("color: green")
             
-        if not self.steering_HC.data:
+        if not self.steering_HC:
             self.health_check_steer_label.setText("☒")
             self.health_check_steer_label.setStyleSheet("color: red")
             
-        if self.braking_HC.data:
+        if self.braking_HC:
             self.health_check_brake_label.setText("☑")
             self.health_check_brake_label.setStyleSheet("color: green")
             
-        if not self.braking_HC.data:
+        if not self.braking_HC:
             self.health_check_brake_label.setText("☒")
             self.health_check_brake_label.setStyleSheet("color: red")
         
@@ -261,7 +249,7 @@ class RobotVisualizer(QtWidgets.QDialog, Ui_Dialog):
         elif self.robot_connection <=100:
             self.connection_pic.setPixmap(QtGui.QPixmap(self.image_paths["connection_80_100"]))
 
-            
+        # self.elapsed_time_label.setText(self.elapsed_time)
             
         if self.battery:
             self.battery_temp_label.setText(f"{self.battery.temperature}°C")
