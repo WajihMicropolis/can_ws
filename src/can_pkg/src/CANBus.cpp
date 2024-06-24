@@ -46,6 +46,7 @@ STATUS_TypeDef CANBus::SendAcknowledgmentMessage(uint8_t _MessageNumber)
 	else
 		return STATUS_ERROR;
 }
+
 STATUS_TypeDef CANBus::ParserCANMessage(uint16_t ID, unsigned char *RxData)
 {
 	uint8_t BoardNumber;
@@ -133,24 +134,31 @@ STATUS_TypeDef CANBus::ParserCANMessage(uint16_t ID, unsigned char *RxData)
 		Vehicle.UltraSonicSensors.Left = RxData[5];
 		break;
 	case ORIN_DOOR_LIFTER_COMMAND:
+		// if (ROBOT_VERSION == 0x00)
+		// {
+		// 	Vehicle.Door_Lifter.LifterStatus = (STATUS_DoorAnsLifter)RxData[1];
+		// 	Vehicle.Door_Lifter.DroneBaseStatus = (STATUS_DoorAnsLifter)RxData[2];
+		// }
+		// else if(ROBOT_VERSION == 0x01)
+		// {
+		// 	Vehicle.Door_Lifter.PodDoorStatus[0] = (STATUS_DoorAnsLifter)(RxData[1] & 0x01);
+		// 	Vehicle.Door_Lifter.PodDoorStatus[1] = (STATUS_DoorAnsLifter)((RxData[1] & 0x02)>>1);
+		// 	Vehicle.Door_Lifter.PodDoorStatus[2] = (STATUS_DoorAnsLifter)((RxData[1] & 0x04)>>2);
+		// 	Vehicle.Door_Lifter.PodDoorStatus[3] = (STATUS_DoorAnsLifter)((RxData[1] & 0x08)>>3);
+		// }
+
+		if (ROBOT_TYPE == 0x01)
+			break;
 		Vehicle.Door_Lifter.DoorCommand = (RxData[0] == 0X00) ? false : true;
-		// Vehicle.Door_Lifter.LifterCommand = (RxData[0] == 0X00) ? false : true;
+		Vehicle.Door_Lifter.LifterCommand = (RxData[0] == 0X00) ? false : true;
 		break;
 
 	case MRCU_DOOR_AND_LIFTER_STATUS:
-		Vehicle.Door_Lifter.DoorStatus = (STATUS_DoorAnsLifter)RxData[0];
-		if (ROBOT_VERSION == 0x00)
-		{
-			Vehicle.Door_Lifter.LifterStatus = (STATUS_DoorAnsLifter)RxData[1];
-			Vehicle.Door_Lifter.DroneBaseStatus = (STATUS_DoorAnsLifter)RxData[2];
-		}
-		else if(ROBOT_VERSION == 0x01)
-		{
-			Vehicle.Door_Lifter.PodDoorStatus[0] = (STATUS_DoorAnsLifter)(RxData[1] & 0x01);
-			Vehicle.Door_Lifter.PodDoorStatus[1] = (STATUS_DoorAnsLifter)((RxData[1] & 0x02)>>1);
-			Vehicle.Door_Lifter.PodDoorStatus[2] = (STATUS_DoorAnsLifter)((RxData[1] & 0x04)>>2);
-			Vehicle.Door_Lifter.PodDoorStatus[3] = (STATUS_DoorAnsLifter)((RxData[1] & 0x08)>>3);
-		}
+		if (ROBOT_TYPE == 0x01)
+			break;
+		Vehicle.Door_Lifter.DoorStatus = (STATUS_DoorAnsLifter) RxData[0];
+		Vehicle.Door_Lifter.LifterStatus = (STATUS_DoorAnsLifter) RxData[1];
+		Vehicle.Door_Lifter.DroneBaseStatus = (STATUS_DoorAnsLifter) RxData[2];
 		break;
 	case MRCU_STATE_OF_CHARGE:
 		Vehicle.PDU.BatteryStateOfCharge.BatteryVoltage = float_decode(CAST(RxData[0]));

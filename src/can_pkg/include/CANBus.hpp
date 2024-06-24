@@ -29,7 +29,7 @@ uint8_t CANAknowledgeFlag = 0;
 /*CAN BUS Library Version***********************************/
 #define MAJOR_VERSION 0
 #define MINOR_VERSION 4
-#define ROBOT_VERSION 0x01 // 0x01 for delivery | 0x00 for drone
+#define ROBOT_TYPE 0x01 //! 0x01 for M2Police, 0x02 for M2Qss Delivery, 0x03 for M2Qss Drone#define ROBOT_VERSION 0x01 // 0x01 for delivery | 0x00 for drone
 /*CAN MESSAGES***********************************************/
 
 /*Main Board*************************************************/

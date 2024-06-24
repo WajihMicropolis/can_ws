@@ -1,6 +1,6 @@
 #!/bin/python3
 
-from PyQt6 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets, QtGui
 from std_msgs.msg import Int16MultiArray, String, Float32, Bool
 from sensor_msgs.msg import BatteryState
 import rospy

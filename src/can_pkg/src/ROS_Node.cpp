@@ -64,6 +64,7 @@ ROS_Node::ROS_Node(/* args */)
    this->_steering_health_check_pub = this->_nh->advertise<std_msgs::Bool>("feedback/steering_health_check", _queue_size, _latch);
    this->_braking_health_check_pub  = this->_nh->advertise<std_msgs::Bool>("feedback/braking_health_check", _queue_size, _latch);
 
+
    this->_front_right_ultrasonic_pub = this->_nh->advertise<sensor_msgs::Range>("feedback/ultrasonic/fr", _queue_size, _latch);
    this->_front_left_ultrasonic_pub  = this->_nh->advertise<sensor_msgs::Range>("feedback/ultrasonic/fl", _queue_size, _latch);
    this->_back_right_ultrasonic_pub  = this->_nh->advertise<sensor_msgs::Range>("feedback/ultrasonic/br", _queue_size, _latch);
@@ -90,10 +91,10 @@ void ROS_Node::robotStateCallback(const std_msgs::String::ConstPtr &robotStateMs
    if (this->_robot_state == "KEY_OFF" || this->_robot_state == "STAND_BY")
    {
       if (this->_velocity != 0 || this->_steering != 0)
-      {  
-         cout<<"Robot is moving and the state is "<<this->_robot_state<<endl;
+      {
+         cout << "Robot is moving and the state is " << this->_robot_state << endl;
          _health_check_srv.request.nextMode = "FREE_DRIVING";
-         
+
          if (this->_health_check_client.call(_health_check_srv))
          {
             ROS_INFO("[RosNode] Health Check Service is ready");
@@ -104,7 +105,6 @@ void ROS_Node::robotStateCallback(const std_msgs::String::ConstPtr &robotStateMs
 void ROS_Node::update()
 {
    can_interface->getFeedback(_can_feedback);
-
    if (ros::Time::now().toSec() - this->_publishTime.toSec() > 1.0 / publish_rate)
    {
       this->publishFeedback(_can_feedback);
@@ -183,13 +183,13 @@ void ROS_Node::publishFeedback(CAN_Interface::CANFeedback &feedback)
    _back_left_ultrasonic_pub.publish(_back_left_ultrasonic_msg);
 
    if (_steering_state_msg.data != "")
-      _steering_state_pub  .publish(_steering_state_msg);
+      _steering_state_pub.publish(_steering_state_msg);
    if (_brake_state_msg.data != "")
-      _brake_state_pub     .publish(_brake_state_msg);
-   if (_door_state_msg.data !="")
-      _door_state_pub      .publish(_door_state_msg);
+      _brake_state_pub.publish(_brake_state_msg);
+   if (_door_state_msg.data != "")
+      _door_state_pub.publish(_door_state_msg);
    if (_lifter_state_msg.data != "")
-      _lifter_state_pub    .publish(_lifter_state_msg);
+      _lifter_state_pub.publish(_lifter_state_msg);
    if (_drone_base_state_msg.data != "")
       _drone_base_state_pub.publish(_drone_base_state_msg);
    if (_pod_doors_state_msg.data != "")
