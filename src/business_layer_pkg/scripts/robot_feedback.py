@@ -253,24 +253,22 @@ class RobotFeedback:
     def getRobotEmergencyCauseArray(self):
         # only check for changes in the emergency causes
         if self.actual_emergency_causes == self.previous_actual_emergency_causes:
-            return self.emergency_causes_array
-        
+            return deepcopy( self.emergency_causes_array)
         self.previous_actual_emergency_causes = deepcopy(self.actual_emergency_causes)
-        array = []
         
+        self.emergency_causes_array = []
         for cause in self.actual_emergency_causes:
             if cause == "Battery":
                 if self.actual_emergency_causes[cause] == "LOW BATTERY":
-                    array.append(self.actual_emergency_causes[cause])
+                    self.emergency_causes_array.append(self.actual_emergency_causes[cause])
                 continue
             
             for motor_side in self.actual_emergency_causes[cause]:
                 if self.actual_emergency_causes[cause][motor_side] != "OK":
                     error_msg = motor_side + " " + cause + " " + "Motor " + self.actual_emergency_causes[cause][motor_side]
-                    array.append(error_msg)
+                    self.emergency_causes_array.append(error_msg)
                     
-        self.emergency_causes_array = array
-        return self.emergency_causes_array
+        return deepcopy( self.emergency_causes_array)
 
     def getBatteryCapacity(self):
         return self.battery_percentage

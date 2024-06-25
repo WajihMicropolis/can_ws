@@ -2,6 +2,7 @@
 
 import json
 from copy import deepcopy
+from os import error
 from re import S
 
 from sympy import false, true
@@ -100,6 +101,7 @@ class Robot_Node:
         self.prev_door_control              = Int8MultiArray()
         
         self.prev_robot_emergency_brake.data = False
+        self.websocket_connection = True
 
         self.robot_state = "STAND_BY"
         self.next_mode   = deepcopy(self.robot_state)
@@ -137,7 +139,6 @@ class Robot_Node:
 
 
         self.prev_publish_time = rospy.Time.now()
-        self.nodes_check_time = rospy.Time.now()
         self.elapsed_init_time = rospy.Time.now().to_sec()
         
         self.start_mapping_srv = False
@@ -387,7 +388,7 @@ class Robot_Node:
         
 
     def check_node(self,node_name):
-        node_ping = rosnode.rosnode_ping(node_name, 1)
+        node_ping = rosnode.rosnode_ping(node_name, 1, verbose = False)
         # print("node ping: ",n)
         return node_ping
     
@@ -498,8 +499,13 @@ class Robot_Node:
         self.prev_emergency_cause_time = rospy.Time.now()
 
         #? update the emergency cause array
-        self.emergency_cause_array = self.Robot_Feedback.getRobotEmergencyCauseArray()
-
+        self.emergency_cause_array.clear()
+        self.emergency_cause_array = deepcopy(self.Robot_Feedback.getRobotEmergencyCauseArray())
+        
+        topic_error = self.ros_nodes_topics_check(self.robot_state)
+        
+        self.emergency_cause_array.extend(topic_error)
+        
         if self.prev_emergency_cause_array == self.emergency_cause_array:
             return
         
@@ -532,8 +538,8 @@ class Robot_Node:
         self.Robot_Control.get_robot_command(self.robot_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
 
         # ! emergency brake if the connection quality is less than 70
-        self.robot_emergency_brake.data = True if self.connection_quality < 70 else self.robot_emergency_brake.data
-        
+        self.robot_emergency_brake.data = True if (self.connection_quality < 70 or not self.websocket_connection) else self.robot_emergency_brake.data
+
         self.tele_operator_pub.     publish(self.teleoperator_command)
         self.velocity_pub.          publish(self.robot_velocity_rpm)
         self.steering_pub.          publish(self.robot_steering)
@@ -559,34 +565,36 @@ class Robot_Node:
         
         self._robot_operational_details_pub.publish(self.robot_operational_details)
     
-    def ros_nodes_check(self, robot_state):
-        # ! CAN_INTERFACE must always be running
-        # ! WebSocket must always be running
-        # ! move_base must be running in case of auto-pilot
-        if rospy.Time.now() - self.nodes_check_time < rospy.Duration(0.1):
-            return
-        self.nodes_check_time = rospy.Time.now()
+    def ros_nodes_topics_check(self, robot_state):
+        
         if robot_state == "STAND_BY" or robot_state == "KEY_OFF" :
-            return
+            # return
+            pass
         
-        # todo: change robot state to EMERGENCY if nodes are not running and send the emergency cause
-        # todo: retry to connect to the nodes
-        #! check connection between Auto -> Embedded
+        error_nodes = []
+        
+        # ? CAN_INTERFACE must always be running
         self.can_check = self.check_node("/can_node")
-        
-        #! check connection between Auto -> Teleoperator
-        self.websocket = self.check_node("/rosbridge_websocket")
-        print(f"websocket node:    {self.websocket}")
-        print(f"connected clients: {self.connected_clients}")
-        print("---------------")
-        if robot_state == "MAPPING" and self.mapping:
-            self.hdl_nodelet_manager_check = self.check_node("/hdl_nodelet_manager")
+        if not self.can_check:
+            error_nodes.append("Can interface not running")
             
-        elif "MISSION" in robot_state:
-            self.hdl_localization_check = self.check_node("/hdl_localization")
-            self.move_base_check = self.check_node("/move_base")
-            
+        # ? WebSocket must always be running
+        self.websocket_connection = self.check_node("/rosbridge_websocket")
+        if not self.websocket_connection:
+            error_nodes.append("WebSocket not running")
         
+         
+        # todo if robot_state == "MAPPING" and self.mapping:        
+        self.velodyne_check = self.check_node("/velodyne_nodelet_manager")
+        
+        if self.pcl_rate == 0:
+            error_nodes.append("Lidar not publishing")
+        
+        if not self.velodyne_check:
+            error_nodes.append("Velodyne node not running")
+                
+            
+        return error_nodes
         
     def update(self):
         
@@ -600,7 +608,6 @@ class Robot_Node:
             
             
             
-        # self.ros_nodes_check(self.robot_state)
             
         # ! for mapping it should be in the loop not in the service callback
         self.launch_map_server()

@@ -2,7 +2,7 @@
 <launch>
 
 	<node pkg="business_layer_pkg" type="ros_node.py" name="robot_control" output="screen">
-		<param name="pcl_topic" value="cloud" />
+		<param name="pcl_topic" value="velodyne_points" />
 		<param name="autonomous_cmd_topic" value="autonomous_cmd_vel" />
 	</node>
 
