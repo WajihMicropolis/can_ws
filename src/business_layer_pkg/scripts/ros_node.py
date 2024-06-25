@@ -315,7 +315,8 @@ class Robot_Node:
         return TriggerResponse(success=True, data=json.dumps(streams_ids), message="streams ids")
 
     def start_map_srv(self,req):      
-        self.start_mapping_srv = True
+        # self.start_mapping_srv = True
+        print("Start MAPPING")
         return TriggerResponse(success=True, message="map started")
 
     def launch_map_server(self):
@@ -333,8 +334,8 @@ class Robot_Node:
         self.mapping = True
         
     def end_map_srv(self,req: end_mapRequest):
-        if not self.mapping:
-            return end_mapResponse(success=False, message="map not started")
+        # if not self.mapping:
+        #     return end_mapResponse(success=False, message="map not started")
         
         print("----------save map---------")
         print("req save map: ",req.save_map)
@@ -344,40 +345,41 @@ class Robot_Node:
         if req.save_map:
             if not req.map_name:
                 return end_mapResponse(success=False, message="map name is required")
-            print("save map")
-            rospy.wait_for_service('/hdl_graph_slam/save_map')
-            print("service ready")
-            save_maps_destination = "/home/microspot/can_ws"
-            map_req = SaveMapRequest()
-            map_req.utm = False
-            map_req.resolution = 0.1
-            map_req.destination = f"{save_maps_destination}/{req.map_name}.pcd"
-            map_result = self._save_map_srv(map_req)
-            print("map_result: ", map_result)
+            # print("save map")
+            # rospy.wait_for_service('/hdl_graph_slam/save_map')
+            # print("service ready")
+            # save_maps_destination = "/home/microspot/can_ws"
+            # map_req = SaveMapRequest()
+            # map_req.utm = False
+            # map_req.resolution = 0.1
+            # map_req.destination = f"{save_maps_destination}/{req.map_name}.pcd"
+            # map_result = self._save_map_srv(map_req)
+            # print("map_result: ", map_result)
             
-            self.run_node("map_server","map_saver",f"-f {save_maps_destination}/map")
+            # self.run_node("map_server","map_saver",f"-f {save_maps_destination}/map")
             # todo save map server
             
             
         
-        pcd_to_grid_kill_node = self.kill_node("/point_cloud_to_occupancy_grid")
-        hdl_kill_node = self.kill_node("/hdl_nodelet_manager")
+        # pcd_to_grid_kill_node = self.kill_node("/point_cloud_to_occupancy_grid")
+        # hdl_kill_node = self.kill_node("/hdl_nodelet_manager")
         
-        if not pcd_to_grid_kill_node:
-            rospy.logerr("point_cloud_to_occupancy_grid not killed")
-            return end_mapResponse(success=False, message="pcd_to_grid_kill_node not ended")
+        # if not pcd_to_grid_kill_node:
+        #     rospy.logerr("point_cloud_to_occupancy_grid not killed")
+        #     return end_mapResponse(success=False, message="pcd_to_grid_kill_node not ended")
         
-        if not hdl_kill_node:
-            rospy.logerr("hdl_nodelet_manager not killed")
-            return end_mapResponse(success=False, message="hdl_kill_node not ended")
+        # if not hdl_kill_node:
+        #     rospy.logerr("hdl_nodelet_manager not killed")
+        #     return end_mapResponse(success=False, message="hdl_kill_node not ended")
         
         rospy.loginfo("Nodes killed successfully")
         self.mapping = False
+        self.robot_state = "FREE_DRIVING"
         file_name = {
             "files":{
                 "image_path":"/home/microspot/can_ws/map.pgm",
                 "yaml_path":"/home/microspot/can_ws/map.yaml",
-                "pcd_path":f"{save_maps_destination}/{req.map_name}.pcd"
+                "pcd_path":f"/home/microspot/{req.map_name}.pcd"
                 }
             }
         return end_mapResponse(success=True, message="mapping node ended", data = json.dumps(file_name))
