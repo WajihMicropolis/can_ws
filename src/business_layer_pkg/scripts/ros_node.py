@@ -138,6 +138,7 @@ class Robot_Node:
 
         self.prev_publish_time = rospy.Time.now()
         self.nodes_check_time = rospy.Time.now()
+        self.elapsed_init_time = rospy.Time.now().to_sec()
         
         self.start_mapping_srv = False
         self.mapping = False
@@ -517,7 +518,7 @@ class Robot_Node:
             self.old_robot_state = self.robot_state
 
         if self.robot_state != "KEY_OFF": # reset the timer
-            self.init_time = rospy.Time.now().to_sec()
+            self.elapsed_init_time = rospy.Time.now().to_sec()
 
         print("robot_state: ", self.robot_state)
         self.prev_robot_state = deepcopy(self.robot_state)
@@ -554,7 +555,7 @@ class Robot_Node:
         
         self.battery_capacity = self.Robot_Feedback.getBatteryCapacity()
         self.connection_quality = self.Robot_Feedback.getConnectionQuality()
-        self.robot_operational_details = self.Robot_Feedback.getRobotDetails(self.robot_state)
+        self.robot_operational_details = self.Robot_Feedback.getRobotDetails(self.robot_state, self.elapsed_init_time)
         
         self._robot_operational_details_pub.publish(self.robot_operational_details)
     

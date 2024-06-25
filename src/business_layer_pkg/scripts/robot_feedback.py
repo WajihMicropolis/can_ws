@@ -278,11 +278,11 @@ class RobotFeedback:
     def getHealthCheck(self):
         return self.steering_health_check, self.braking_health_check
     
-    def update_elapsed_time(self, robot_state):
+    def update_elapsed_time(self, robot_state, init_time):
         if robot_state == "KEY_OFF":
             return "00:00:00"
         t = rospy.Time.now().to_sec()
-        start_time = t - self.init_time
+        start_time = t - init_time
         start_time = round(start_time, 2)
         elapsed_time = datetime.timedelta(seconds=int(start_time))
         time_str = str(elapsed_time)
@@ -292,9 +292,9 @@ class RobotFeedback:
     def getConnectionQuality(self):
         return self.connection_quality
     
-    def getRobotDetails(self, robot_state):
+    def getRobotDetails(self, robot_state, init_time):
         
-        data['duration']['elapsed'] = self.update_elapsed_time(robot_state)
+        data['duration']['elapsed'] = self.update_elapsed_time(robot_state, init_time)
         data['timestamp'] = rospy.get_time()
         data['connection_quality'] = self.connection_quality 
         
