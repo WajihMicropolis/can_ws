@@ -504,7 +504,8 @@ class Robot_Node:
         
         topic_error = self.ros_nodes_topics_check(self.robot_state)
         
-        self.emergency_cause_array.extend(topic_error)
+        # todo uncomment to add the error topics
+        # self.emergency_cause_array.extend(topic_error)
         
         if self.prev_emergency_cause_array == self.emergency_cause_array:
             return
@@ -596,7 +597,6 @@ class Robot_Node:
                 error_nodes.append("Velodyne node not running")
                 
             
-        return []
         return error_nodes
         
     def update(self):
