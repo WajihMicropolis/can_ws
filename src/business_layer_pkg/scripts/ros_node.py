@@ -538,8 +538,10 @@ class Robot_Node:
         self.Robot_Control.get_robot_command(self.robot_command, self.robot_velocity_rpm, self.robot_steering, self.robot_emergency_brake)
 
         # ! emergency brake if the connection quality is less than 70
+        # print("connection_quality: ", self.connection_quality)
+        # print("websocket_connection: ", self.websocket_connection)
         self.robot_emergency_brake.data = True if (self.connection_quality < 70 or not self.websocket_connection) else self.robot_emergency_brake.data
-
+        # print("robot_emergency_brake: ", self.robot_emergency_brake.data)
         self.tele_operator_pub.     publish(self.teleoperator_command)
         self.velocity_pub.          publish(self.robot_velocity_rpm)
         self.steering_pub.          publish(self.robot_steering)
@@ -568,7 +570,7 @@ class Robot_Node:
     def ros_nodes_topics_check(self, robot_state):
         
         if robot_state == "STAND_BY" or robot_state == "KEY_OFF" :
-            # return
+            return
             pass
         
         error_nodes = []
@@ -584,16 +586,17 @@ class Robot_Node:
             error_nodes.append("WebSocket not running")
         
          
-        # todo if robot_state == "MAPPING" and self.mapping:        
-        self.velodyne_check = self.check_node("/velodyne_nodelet_manager")
-        
-        if self.pcl_rate == 0:
-            error_nodes.append("Lidar not publishing")
-        
-        if not self.velodyne_check:
-            error_nodes.append("Velodyne node not running")
+        if robot_state == "MAPPING" and self.mapping:        
+            self.velodyne_check = self.check_node("/velodyne_nodelet_manager")
+            
+            if self.pcl_rate == 0:
+                error_nodes.append("Lidar not publishing")
+            
+            if not self.velodyne_check:
+                error_nodes.append("Velodyne node not running")
                 
             
+        return []
         return error_nodes
         
     def update(self):
