@@ -71,7 +71,7 @@ class Robot_Control:
 
     def update_speed(self):
         if self.drive_data["b"] == 1:
-            print("brake")
+            # print("brake")
             self.speed_goal = 0
             self.robot_emergency_brake.data = True
 
